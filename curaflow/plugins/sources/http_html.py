@@ -8,9 +8,11 @@ import yaml
 
 from ...fetcher import SRC_DIR, FetchMeta, conditional_get
 from ...html_utils import make_soup, slugify
+from ...plugin_registry import source_plugin
 from ...utils import ensure_dir, sha256_obj, write_text_atomic
 
 
+@source_plugin("http_html")
 async def fetch(
     name: str, params: dict[str, Any]
 ) -> tuple[bool, dict[str, Any] | None, list[dict[str, Any]]]:

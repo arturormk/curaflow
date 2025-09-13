@@ -28,6 +28,51 @@ curaflow diff targets:tenants_bundle -m example/manifest.yaml
 
 See `example/manifest.yaml` and comments in `curaflow/plugins/sources/http_html.py`.
 
+## Writing a Plugin
+
+Plugins are lightweight callables registered via decorators:
+
+```python
+from curaflow.plugin_registry import source_plugin, target_plugin
+
+@source_plugin("my_source")
+async def fetch_my_source(name: str, params: dict[str, object]):
+		"""Return (changed, data, children)."""
+		data = {"hello": "world"}
+		return True, data, []
+
+@target_plugin("my_target")
+def build_my_target(name: str, deps: list[str], params: dict[str, object]):
+		return {"previous": None, "current": {"deps": deps}, "output_path": "-"}
+```
+
+Add them to your manifest:
+
+```yaml
+sources:
+	- name: demo
+		plugin: my_source
+		params: {}
+targets:
+	- name: all
+		plugin: my_target
+		deps: [demo]
+```
+
+Ship a module that imports the decorators (import side-effect registers). No auto-discovery yet—ensure your plugin module is imported before use (e.g. `import my_package.curaflow_plugins`).
+
+Source plugin return tuple:
+1. `changed` (bool) – whether output YAML updated.
+2. `data` – structured object (serialized to YAML by your function if you write the file yourself; current built-ins write directly).
+3. `children` – list of dynamically spawned source specs `{name, plugin, params}`.
+
+Target plugin return dict should include at minimum:
+* `previous` – prior object (if exists)
+* `current` – new artifact object
+* `output_path` – written file path
+
+See ADR-0012 for rationale.
+
 ## Attribution & Curation
 Curaflow is **AI-assisted** and **human-curated**. AI (GitHub Copilot / GPT models) generated initial scaffolding and subsequent instrumentation following the policy in ADR-0010. All architectural and process decisions are recorded as ADRs in `docs/adr/`. Human maintainers review intent, enforce tests, and ensure transparency.
 

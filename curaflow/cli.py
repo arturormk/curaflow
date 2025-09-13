@@ -13,6 +13,7 @@ from rich.table import Table
 from .dag import PluginName, SourceSpec, TargetSpec, needs_rebuild, topo_sort
 from .diffing import deep_diff
 from .fetcher import fetch_http_bytes, fetch_http_json
+from .plugin_registry import execute_source, execute_target, get_source, get_target
 from .utils import write_text_atomic
 
 
@@ -116,27 +117,18 @@ def fetch(manifest: ManifestPath) -> None:
                 break
         if next_item is None:
             break
-        name: str = next_item["name"]
-        plugin: str = next_item["plugin"]
-        params: dict[str, Any] = next_item.get("params", {})
+        name = next_item["name"]
+        plugin = next_item["plugin"]
+        params = next_item.get("params", {})
         children: list[dict[str, Any]] = []
+
+        # Built-in legacy plugins not yet migrated to registry (http_json, http_bytes)
         if plugin == "http_json":
             url = params["url"]
             headers = params.get("headers")
             changed, _obj = asyncio.run(fetch_http_json(name, url, headers))
             if changed:
                 rprint(f"[green]updated[/green] {name} -> data/sources/{name}.yaml")
-                changed_any = True
-            else:
-                rprint(f"[dim]unchanged[/dim] {name}")
-        elif plugin == "http_html":
-            from .plugins.sources.http_html import fetch as html_fetch
-
-            changed, _obj, children = asyncio.run(html_fetch(name, params))
-            if changed:
-                rprint(
-                    f"[green]updated[/green] {name} -> data/sources/{name}.yaml  (+{len(children)} children)"
-                )
                 changed_any = True
             else:
                 rprint(f"[dim]unchanged[/dim] {name}")
@@ -150,7 +142,27 @@ def fetch(manifest: ManifestPath) -> None:
             else:
                 rprint(f"[dim]unchanged[/dim] {name}")
         else:
-            rprint(f"[yellow]SKIP[/yellow] {name}: plugin {plugin} not implemented")
+            # registry-based plugin
+            try:
+                # ensure module imported (for built-ins already imported via decorator)
+                # If not registered, we attempt a friendly skip.
+                get_source(plugin)
+            except Exception:
+                rprint(f"[yellow]SKIP[/yellow] {name}: plugin {plugin} not registered")
+                processed.add(name)
+                continue
+            res = asyncio.run(execute_source(plugin, {**params, "name": name}))
+            if "error" in res:
+                rprint(f"[red]error[/red] {name} ({plugin}) -> {res['error'].splitlines()[-1]}")
+            else:
+                if res.get("changed"):
+                    child_count = len(res.get("children", []) or [])
+                    suffix = f"  (+{child_count} children)" if child_count else ""
+                    rprint(f"[green]updated[/green] {name} -> data/sources/{name}.yaml{suffix}")
+                    changed_any = True
+                else:
+                    rprint(f"[dim]unchanged[/dim] {name}")
+                children = res.get("children", []) or []
 
         if children:
             enqueue_children(children)
@@ -205,32 +217,30 @@ def build(manifest: ManifestPath) -> None:
             rprint(f"[dim]up-to-date[/dim] {tname}")
             continue
 
-        if spec.plugin == "concat_json":
-            merged: dict[str, Any] = {}
-            for d in spec.deps:
-                p = source_paths.get(d, APP_DIRS["targets"] / f"{d}.json")
-                obj = (
-                    _load_yaml(p)
-                    if p.suffix == ".yaml"
-                    else json.loads(p.read_text(encoding="utf-8"))
-                )
-                merged[d] = obj
-            outp = outputs[0]
-            prev = json.loads(outp.read_text(encoding="utf-8")) if outp.exists() else None
-            _write_json(outp, merged)
-            built_any = True
-            changes = deep_diff(prev, merged) if prev is not None else [f"/: created {tname}"]
-            if changes:
-                (APP_DIRS["diffs"] / f"{tname}.diff.txt").write_text(
-                    "\n".join(changes), encoding="utf-8"
-                )
-                rprint(
-                    f"[green]built[/green] {tname} -> {outp}  ([bold]{len(changes)}[/bold] change lines)"
-                )
+        # target plugin path
+        try:
+            get_target(spec.plugin)
+        except Exception:
+            if spec.plugin == "concat_json":  # legacy fallback should not happen now
+                rprint(f"[yellow]legacy path used for {tname}[/yellow]")
             else:
-                rprint(f"[green]built[/green] {tname} -> {outp}  (no structural changes)")
+                rprint(f"[yellow]SKIP[/yellow] {tname}: plugin {spec.plugin} not registered")
+                continue
+        result = execute_target(spec.plugin, spec.deps, spec.params)
+        outp = outputs[0]
+        prev = result.get("previous")
+        merged = result.get("current")
+        built_any = True
+        changes = deep_diff(prev, merged) if prev is not None else [f"/: created {tname}"]
+        if changes:
+            (APP_DIRS["diffs"] / f"{tname}.diff.txt").write_text(
+                "\n".join(changes), encoding="utf-8"
+            )
+            rprint(
+                f"[green]built[/green] {tname} -> {outp}  ([bold]{len(changes)}[/bold] change lines)"
+            )
         else:
-            rprint(f"[yellow]SKIP[/yellow] {tname}: plugin {spec.plugin} not implemented")
+            rprint(f"[green]built[/green] {tname} -> {outp}  (no structural changes)")
 
     if built_any:
         rprint("[bold green]Some targets rebuilt[/bold green]")

@@ -10,6 +10,7 @@ This directory contains Architecture Decision Records (ADRs) for Curaflow.
 - 0002 - hierarchical-fanout-design (Accepted)
 - 0010 - ai-curation-policy (Accepted)
 - 0011 - adopt-third-party-type-stubs (Accepted)
+- 0012 - plugin-registry (Accepted)
 <!-- ADR-INDEX:END -->
 
 ## Conventions
