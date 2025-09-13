@@ -1,0 +1,33 @@
+# Hierarchical example manifest. Replace URLs with real endpoints.
+sources:
+  # 1) Index page listing tenants; extract tenant links and fan out tenant pages
+  - name: tenants_index
+    plugin: http_html
+    params:
+      url: "https://example.com/shops"
+      extract:
+        - name: tenant_links
+          css: ".tenant-card a"
+          attr: href
+      fanout:
+        - from: tenant_links
+          plugin: http_html
+          name_template: "tenant:{slug}"
+          params:
+            url: "{absolute_url}"
+            extract:
+              - name: image_links
+                css: ".tenant-gallery img"
+                attr: src
+            fanout:
+              - from: image_links
+                plugin: http_bytes
+                name_template: "tenant-img:{slug}:{index}"
+                params:
+                  url: "{absolute_url}"
+
+targets:
+  # For demo: bundle index source only (you can add dynamic item deps later)
+  - name: tenants_bundle
+    plugin: concat_json
+    deps: ["tenants_index"]
