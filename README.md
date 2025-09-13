@@ -27,3 +27,9 @@ curaflow diff targets:tenants_bundle -m example/manifest.yaml
 - **Dynamic registry:** Discovered sources are persisted in `.curaflow/meta/sources_dynamic.json`.
 
 See `example/manifest.yaml` and comments in `curaflow/plugins/sources/http_html.py`.
+
+## Attribution & Curation
+Curaflow is **AI-assisted** and **human-curated**. AI (GitHub Copilot / GPT models) generated initial scaffolding and subsequent instrumentation following the policy in ADR-0010. All architectural and process decisions are recorded as ADRs in `docs/adr/`. Human maintainers review intent, enforce tests, and ensure transparency.
+
+## Contributing
+See `CONTRIBUTING.md`. Propose changes via issues + ADRs. Reference ADR IDs in commits (e.g., `refs ADR-0002`).

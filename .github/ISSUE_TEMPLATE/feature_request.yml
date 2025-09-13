@@ -1,0 +1,20 @@
+name: Feature Request
+labels: [enhancement]
+description: Propose a new capability
+body:
+  - type: input
+    id: problem
+    attributes:
+      label: Problem Statement
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed Solution
+  - type: textarea
+    id: adr
+    attributes:
+      label: ADR Impact (new ADR? update existing?)
+  - type: textarea
+    id: rationale
+    attributes:
+      label: Rationale / Alternatives

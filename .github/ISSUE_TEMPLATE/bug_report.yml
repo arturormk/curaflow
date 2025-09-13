@@ -1,0 +1,24 @@
+name: Bug Report
+labels: [bug]
+description: Report a reproducible issue
+body:
+  - type: input
+    id: summary
+    attributes:
+      label: Summary
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to Reproduce
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected Behavior
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual Behavior / Logs
+  - type: textarea
+    id: context
+    attributes:
+      label: Additional Context / ADR References
