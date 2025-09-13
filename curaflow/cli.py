@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
-from typing import Any
+from typing import Annotated, Any
 
 import typer
 import yaml
@@ -24,6 +24,8 @@ APP_DIRS = {
 app = typer.Typer(
     help="Curaflow: incremental fetch→normalize→build pipeline (with hierarchical fanout)."
 )
+
+ManifestPath = Annotated[Path, typer.Option("-m", help="Path to manifest.yaml")]
 
 
 def load_manifest(manifest: Path) -> tuple[dict[str, SourceSpec], dict[str, TargetSpec]]:
@@ -47,7 +49,7 @@ def ensure_base_dirs():
 
 
 @app.command()
-def plan(manifest: Path = typer.Option(..., "-m", help="Path to manifest.yaml")):
+def plan(manifest: ManifestPath):
     sources, targets = load_manifest(manifest)
     rprint("[bold]Sources[/bold]")
     for s in sources.values():
@@ -58,7 +60,7 @@ def plan(manifest: Path = typer.Option(..., "-m", help="Path to manifest.yaml"))
 
 
 @app.command()
-def fetch(manifest: Path = typer.Option(..., "-m", help="Path to manifest.yaml")):
+def fetch(manifest: ManifestPath):
     """Fetch/normalize all sources (skips if unchanged), including dynamically fanned-out children."""
     ensure_base_dirs()
     sources, _ = load_manifest(manifest)
@@ -160,7 +162,7 @@ def _write_json(p: Path, obj: Any) -> None:
 
 
 @app.command()
-def build(manifest: Path = typer.Option(..., "-m", help="Path to manifest.yaml")):
+def build(manifest: ManifestPath):
     ensure_base_dirs()
     sources, targets = load_manifest(manifest)
 
@@ -223,7 +225,7 @@ def build(manifest: Path = typer.Option(..., "-m", help="Path to manifest.yaml")
 
 
 @app.command()
-def status(manifest: Path = typer.Option(..., "-m", help="Path to manifest.yaml")):
+def status(manifest: ManifestPath):
     sources, targets = load_manifest(manifest)
 
     tbl = Table(title="Sources", show_lines=False)
