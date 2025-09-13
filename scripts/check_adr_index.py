@@ -8,11 +8,12 @@ from __future__ import annotations
 import pathlib
 import re
 import sys
+from typing import Final
 
-ADR_DIR = pathlib.Path("docs/adr")
-README = ADR_DIR / "README.md"
-BEGIN = "<!-- ADR-INDEX:BEGIN -->"
-END = "<!-- ADR-INDEX:END -->"
+ADR_DIR: Final = pathlib.Path("docs/adr")
+README: Final = ADR_DIR / "README.md"
+BEGIN: Final = "<!-- ADR-INDEX:BEGIN -->"
+END: Final = "<!-- ADR-INDEX:END -->"
 
 
 def collect_adrs() -> list[tuple[str, str, str]]:

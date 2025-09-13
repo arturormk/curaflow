@@ -3,16 +3,28 @@ from __future__ import annotations
 import json
 import mimetypes
 from pathlib import Path
-from typing import Any
+from typing import Any, Final, Protocol
 
 import httpx
 import yaml
 
 from .utils import ensure_dir, sha256_bytes, sha256_obj, write_bytes_atomic, write_text_atomic
 
-META_DIR = Path(".curaflow/meta")
-SRC_DIR = Path("data/sources")
-RAW_DIR = Path("data/raw")
+META_DIR: Final = Path(".curaflow/meta")
+SRC_DIR: Final = Path("data/sources")
+RAW_DIR: Final = Path("data/raw")
+
+
+class JsonFetcher(Protocol):
+    async def __call__(
+        self, name: str, url: str, headers: dict[str, str] | None = None
+    ) -> tuple[bool, dict[str, Any] | None]: ...
+
+
+class BytesFetcher(Protocol):
+    async def __call__(
+        self, name: str, url: str, headers: dict[str, str] | None = None
+    ) -> tuple[bool, dict[str, Any] | None]: ...
 
 
 class FetchMeta:

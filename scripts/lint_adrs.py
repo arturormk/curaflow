@@ -10,10 +10,11 @@ from __future__ import annotations
 import pathlib
 import re
 import sys
+from typing import Final
 
-ADR_DIR = pathlib.Path("docs/adr")
-REQUIRED_SECTIONS = ["## Context", "## Decision", "## Consequences"]
-VALID_STATUS = {"Proposed", "Accepted", "Superseded"}
+ADR_DIR: Final = pathlib.Path("docs/adr")
+REQUIRED_SECTIONS: Final = ["## Context", "## Decision", "## Consequences"]
+VALID_STATUS: Final = {"Proposed", "Accepted", "Superseded"}
 FILENAME_RE = re.compile(r"^[0-9]{4}-[a-z0-9-]+\.md$")
 
 

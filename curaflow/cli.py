@@ -3,19 +3,33 @@ from __future__ import annotations
 import asyncio
 import json
 from pathlib import Path
-from typing import Annotated, Any
+from typing import Annotated, Any, Final, TypedDict
 
 import typer
 import yaml
 from rich import print as rprint
 from rich.table import Table
 
-from .dag import SourceSpec, TargetSpec, needs_rebuild, topo_sort
+from .dag import PluginName, SourceSpec, TargetSpec, needs_rebuild, topo_sort
 from .diffing import deep_diff
 from .fetcher import fetch_http_bytes, fetch_http_json
 from .utils import write_text_atomic
 
-APP_DIRS = {
+
+class ManifestSource(TypedDict, total=False):
+    name: str
+    plugin: PluginName
+    params: dict[str, object]
+
+
+class ManifestTarget(TypedDict, total=False):
+    name: str
+    plugin: PluginName
+    deps: list[str]
+    params: dict[str, object]
+
+
+APP_DIRS: Final = {
     "meta": Path(".curaflow/meta"),
     "diffs": Path(".curaflow/diffs"),
     "sources": Path("data/sources"),

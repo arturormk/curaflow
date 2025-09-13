@@ -5,14 +5,17 @@ from collections import defaultdict, deque
 from collections.abc import Callable, Iterable
 from dataclasses import dataclass, field
 from pathlib import Path
+from typing import Literal
 
 from .utils import newest_mtime
+
+PluginName = Literal["concat_json", "http_json", "http_html", "http_bytes"]
 
 
 @dataclass
 class TargetSpec:
     name: str
-    plugin: str
+    plugin: PluginName
     deps: list[str]
     params: dict[str, object] = field(default_factory=dict)
 
@@ -20,7 +23,7 @@ class TargetSpec:
 @dataclass
 class SourceSpec:
     name: str
-    plugin: str
+    plugin: PluginName
     params: dict[str, object]
 
 
