@@ -57,8 +57,8 @@ Full gate:
 ruff check . --fix && ruff format . && mypy . && pytest -q && pre-commit run --all-files
 ```
 
-## Why Not an ADR?
-This is operational guidance, not an architectural decision. If tooling philosophy changes (e.g., adopt Black + isort separately) an ADR could capture rationale.
+## Relation to ADR-0013
+This issue captures the *operational troubleshooting narrative* that led to formalizing policy in ADR-0013 (Ruff unified lint & format governance). For normative rules, see ADR-0013; for practical, example-driven fixes and workflow quick references, use this document.
 
 ## References
 - ADR-0001 (dependency policy)
