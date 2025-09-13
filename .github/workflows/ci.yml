@@ -28,7 +28,7 @@ jobs:
       - name: Format check (ruff)
         run: ruff format --check .
       - name: Type check (mypy)
-        run: mypy curaflow
+        run: mypy curaflow tests scripts
       - name: ADR lint
         run: |
           python scripts/check_adr_index.py || (echo 'Index updated; commit required' && exit 1)

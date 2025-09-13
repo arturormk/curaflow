@@ -17,7 +17,7 @@ VALID_STATUS = {"Proposed", "Accepted", "Superseded"}
 FILENAME_RE = re.compile(r"^[0-9]{4}-[a-z0-9-]+\.md$")
 
 
-def lint_file(p: pathlib.Path):
+def lint_file(p: pathlib.Path) -> list[str]:
     if p.name in {"TEMPLATE.md", "README.md"}:
         return []
     text = p.read_text(encoding="utf-8")
@@ -38,7 +38,7 @@ def lint_file(p: pathlib.Path):
     return errors
 
 
-def main():
+def main() -> None:
     any_err = False
     for p in sorted(ADR_DIR.glob("*.md")):
         errs = lint_file(p)

@@ -1,7 +1,7 @@
 from curaflow.diffing import deep_diff
 
 
-def test_deep_diff_basic_changes():
+def test_deep_diff_basic_changes() -> None:
     a = {"a": 1, "b": {"c": 2}}
     b = {"a": 1, "b": {"c": 3, "d": 4}}
     diff = deep_diff(a, b)

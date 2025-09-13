@@ -14,14 +14,14 @@ class TargetSpec:
     name: str
     plugin: str
     deps: list[str]
-    params: dict = field(default_factory=dict)
+    params: dict[str, object] = field(default_factory=dict)
 
 
 @dataclass
 class SourceSpec:
     name: str
     plugin: str
-    params: dict
+    params: dict[str, object]
 
 
 def topo_sort(targets: dict[str, TargetSpec]) -> list[str]:

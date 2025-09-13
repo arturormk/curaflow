@@ -28,6 +28,12 @@ repos:
         entry: bash scripts/check_prints.sh
         language: system
         types: [python]
+      - id: mypy
+        name: mypy
+        entry: bash -c 'mypy curaflow tests scripts'
+        language: system
+        pass_filenames: false
+        types: [python]
       - id: fast-tests
         name: fast-tests
         entry: bash scripts/fast_tests.sh

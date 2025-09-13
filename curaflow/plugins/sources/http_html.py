@@ -13,7 +13,7 @@ from ...utils import ensure_dir, sha256_obj, write_text_atomic
 
 async def fetch(
     name: str, params: dict[str, Any]
-) -> tuple[bool, dict[str, Any], list[dict[str, Any]]]:
+) -> tuple[bool, dict[str, Any] | None, list[dict[str, Any]]]:
     """Fetch HTML, extract items via CSS, normalize to YAML, and optionally fan out child sources.
     Params:
       url: str
@@ -69,7 +69,11 @@ async def fetch(
                 value = el.get_text(strip=True)
                 rec["text"] = value
             else:
-                value = el.get(attr) or ""
+                raw_val = el.get(attr)
+                if isinstance(raw_val, list):  # BeautifulSoup attr may be list
+                    value = " ".join(str(v) for v in raw_val)
+                else:
+                    value = str(raw_val) if raw_val is not None else ""
                 rec[attr] = value
             if attr in ("href", "src") and value:
                 rec["absolute_url"] = urljoin(base, value)

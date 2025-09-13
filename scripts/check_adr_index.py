@@ -15,7 +15,7 @@ BEGIN = "<!-- ADR-INDEX:BEGIN -->"
 END = "<!-- ADR-INDEX:END -->"
 
 
-def collect_adrs():
+def collect_adrs() -> list[tuple[str, str, str]]:
     entries = []
     for p in sorted(ADR_DIR.glob("[0-9][0-9][0-9][0-9]-*.md")):
         if p.name == "TEMPLATE.md":
@@ -29,11 +29,11 @@ def collect_adrs():
     return entries
 
 
-def build_index(entries):
+def build_index(entries: list[tuple[str, str, str]]) -> str:
     return "\n".join(f"- {num} - {slug} ({status})" for num, slug, status in entries)
 
 
-def main():
+def main() -> None:
     entries = collect_adrs()
     expected_index = build_index(entries)
     content = README.read_text(encoding="utf-8")

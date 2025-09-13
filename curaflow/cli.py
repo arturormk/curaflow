@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 import json
 from pathlib import Path
 from typing import Annotated, Any
@@ -43,13 +44,13 @@ def load_manifest(manifest: Path) -> tuple[dict[str, SourceSpec], dict[str, Targ
     return sources, targets
 
 
-def ensure_base_dirs():
+def ensure_base_dirs() -> None:
     for p in APP_DIRS.values():
         p.mkdir(parents=True, exist_ok=True)
 
 
 @app.command()
-def plan(manifest: ManifestPath):
+def plan(manifest: ManifestPath) -> None:
     sources, targets = load_manifest(manifest)
     rprint("[bold]Sources[/bold]")
     for s in sources.values():
@@ -60,14 +61,14 @@ def plan(manifest: ManifestPath):
 
 
 @app.command()
-def fetch(manifest: ManifestPath):
+def fetch(manifest: ManifestPath) -> None:
     """Fetch/normalize all sources (skips if unchanged), including dynamically fanned-out children."""
     ensure_base_dirs()
     sources, _ = load_manifest(manifest)
 
     # Load previously discovered dynamic sources
     dyn_path = APP_DIRS["meta"] / "sources_dynamic.json"
-    dynamic_sources = {}
+    dynamic_sources: dict[str, dict[str, Any]] = {}
     if dyn_path.exists():
         try:
             dynamic_sources = {
@@ -78,15 +79,15 @@ def fetch(manifest: ManifestPath):
 
     # Work queue
     queue: dict[str, dict[str, Any]] = {}
-    for s in sources.values():
-        queue[s.name] = {"name": s.name, "plugin": s.plugin, "params": s.params}
-    for s in dynamic_sources.values():
-        queue.setdefault(s["name"], s)
+    for src in sources.values():
+        queue[src.name] = {"name": src.name, "plugin": src.plugin, "params": src.params}
+    for dyn in dynamic_sources.values():
+        queue.setdefault(dyn["name"], dyn)
 
     processed: set[str] = set()
     changed_any = False
 
-    def enqueue_children(children: list[dict]):
+    def enqueue_children(children: list[dict[str, Any]]) -> None:
         for ch in children:
             nm = ch["name"]
             if nm not in queue and nm not in processed:
@@ -94,22 +95,21 @@ def fetch(manifest: ManifestPath):
                 dynamic_sources[nm] = ch
 
     while True:
-        next_item = None
+        next_item: dict[str, Any] | None = None
         for nm, spec in queue.items():
             if nm not in processed:
                 next_item = spec
                 break
-        if not next_item:
+        if next_item is None:
             break
-
-        name = next_item["name"]
-        plugin = next_item["plugin"]
-        params = next_item.get("params", {})
-        children: list[dict] = []
+        name: str = next_item["name"]
+        plugin: str = next_item["plugin"]
+        params: dict[str, Any] = next_item.get("params", {})
+        children: list[dict[str, Any]] = []
         if plugin == "http_json":
             url = params["url"]
             headers = params.get("headers")
-            changed, _obj = typer.run_async(fetch_http_json(name, url, headers))
+            changed, _obj = asyncio.run(fetch_http_json(name, url, headers))
             if changed:
                 rprint(f"[green]updated[/green] {name} -> data/sources/{name}.yaml")
                 changed_any = True
@@ -118,7 +118,7 @@ def fetch(manifest: ManifestPath):
         elif plugin == "http_html":
             from .plugins.sources.http_html import fetch as html_fetch
 
-            changed, _obj, children = typer.run_async(html_fetch(name, params))
+            changed, _obj, children = asyncio.run(html_fetch(name, params))
             if changed:
                 rprint(
                     f"[green]updated[/green] {name} -> data/sources/{name}.yaml  (+{len(children)} children)"
@@ -129,7 +129,7 @@ def fetch(manifest: ManifestPath):
         elif plugin == "http_bytes":
             url = params["url"]
             headers = params.get("headers")
-            changed, _meta = typer.run_async(fetch_http_bytes(name, url, headers))
+            changed, _meta = asyncio.run(fetch_http_bytes(name, url, headers))
             if changed:
                 rprint(f"[green]updated[/green] {name} -> data/sources/{name}.yaml (binary)")
                 changed_any = True
@@ -153,7 +153,7 @@ def fetch(manifest: ManifestPath):
         rprint("[bold dim]No source changed[/bold dim]")
 
 
-def _load_yaml(p: Path):
+def _load_yaml(p: Path) -> Any:
     return yaml.safe_load(p.read_text(encoding="utf-8")) if p.exists() else None
 
 
@@ -162,7 +162,7 @@ def _write_json(p: Path, obj: Any) -> None:
 
 
 @app.command()
-def build(manifest: ManifestPath):
+def build(manifest: ManifestPath) -> None:
     ensure_base_dirs()
     sources, targets = load_manifest(manifest)
 
@@ -225,7 +225,7 @@ def build(manifest: ManifestPath):
 
 
 @app.command()
-def status(manifest: ManifestPath):
+def status(manifest: ManifestPath) -> None:
     sources, targets = load_manifest(manifest)
 
     tbl = Table(title="Sources", show_lines=False)
@@ -258,7 +258,9 @@ def status(manifest: ManifestPath):
 
 
 @app.command()
-def diff(artifact: str = typer.Argument(..., help="Prefix 'sources:' or 'targets:' + name")):
+def diff(
+    artifact: str = typer.Argument(..., help="Prefix 'sources:' or 'targets:' + name"),
+) -> None:
     kind, name = artifact.split(":", 1)
     if kind == "targets":
         p = APP_DIRS["diffs"] / f"{name}.diff.txt"

@@ -3,7 +3,7 @@ import subprocess
 import sys
 
 
-def test_cli_plan_runs():
+def test_cli_plan_runs() -> None:
     manifest = pathlib.Path("example/manifest.yaml")
     assert manifest.exists()
     proc = subprocess.run(

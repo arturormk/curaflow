@@ -1,9 +1,10 @@
 import time
+from pathlib import Path
 
 from curaflow.dag import TargetSpec, needs_rebuild, topo_sort
 
 
-def test_topo_sort_order():
+def test_topo_sort_order() -> None:
     targets = {
         "A": TargetSpec(name="A", plugin="concat_json", deps=[], params={}),
         "B": TargetSpec(name="B", plugin="concat_json", deps=["A"], params={}),
@@ -13,7 +14,7 @@ def test_topo_sort_order():
     assert order == ["A", "B", "C"]
 
 
-def test_needs_rebuild(tmp_path):
+def test_needs_rebuild(tmp_path: Path) -> None:
     out = tmp_path / "out.json"
     dep = tmp_path / "dep.json"
     dep.write_text("{}")
