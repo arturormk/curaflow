@@ -1,8 +1,10 @@
 from __future__ import annotations
-from typing import Any, List
 
-def deep_diff(a: Any, b: Any, path: str = "") -> List[str]:
-    changes: List[str] = []
+from typing import Any
+
+
+def deep_diff(a: Any, b: Any, path: str = "") -> list[str]:
+    changes: list[str] = []
     if type(a) is not type(b):
         changes.append(f"{path or '/'}: type {type(a).__name__} -> {type(b).__name__}")
         return changes

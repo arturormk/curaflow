@@ -16,12 +16,12 @@ repos:
       - id: adr-index
         name: adr-index
         entry: python scripts/check_adr_index.py
-        language: system
+        language: python
         pass_filenames: false
       - id: adr-lint
         name: adr-lint
         entry: python scripts/lint_adrs.py
-        language: system
+        language: python
         pass_filenames: false
       - id: print-guard
         name: print-guard

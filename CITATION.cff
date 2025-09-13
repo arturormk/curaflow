@@ -1,0 +1,15 @@
+cff-version: 1.2.0
+title: "Curaflow"
+message: "If you use this software, please cite it."
+version: 0.1.0
+authors:
+  - given-names: Arturo
+    family-names: Montesinos
+repository-code: https://github.com/arturormk/curaflow
+license: MIT
+abstract: "Incremental, parallel fetch→normalize→build pipeline with hierarchical fanout for web-curated data (AI-assisted, human curated)."
+preferred-citation:
+  type: software
+  title: "Curaflow"
+  version: 0.1.0
+  notes: "AI-assisted code; curated and validated by a human Software Curator (see ADR-0010)."

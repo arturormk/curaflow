@@ -5,10 +5,10 @@ This directory contains Architecture Decision Records (ADRs) for Curaflow.
 ## Index
 
 <!-- ADR-INDEX:BEGIN -->
-- 0000 – introduce-adr-system (Accepted)
-- 0001 – packaging-and-dependency-policy (Accepted)
-- 0002 – hierarchical-fanout-design (Accepted)
-- 0010 – ai-curation-policy (Accepted)
+- 0000 - introduce-adr-system (Accepted)
+- 0001 - packaging-and-dependency-policy (Accepted)
+- 0002 - hierarchical-fanout-design (Accepted)
+- 0010 - ai-curation-policy (Accepted)
 <!-- ADR-INDEX:END -->
 
 ## Conventions

@@ -18,9 +18,9 @@ Date: YYYY-MM-DD
 - ...
 
 ## References
-- Commit: 
-- ADR: 
-- CI Log: 
+- Commit:
+- ADR:
+- CI Log:
 
 ## Tags
 - ...
