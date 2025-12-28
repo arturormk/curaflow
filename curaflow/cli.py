@@ -12,7 +12,13 @@ from rich.table import Table
 
 from .dag import PluginName, SourceSpec, TargetSpec, needs_rebuild, topo_sort
 from .diffing import deep_diff
-from .plugin_registry import execute_source, execute_target, get_source, get_target
+from .plugin_registry import (
+    execute_source,
+    execute_target,
+    get_source,
+    get_target,
+    load_plugins_from_dir,
+)
 from .utils import write_text_atomic
 
 
@@ -42,6 +48,36 @@ from . import plugins  # noqa: E402, F401
 app = typer.Typer(
     help="Curaflow: incremental fetch→normalize→build pipeline (with hierarchical fanout)."
 )
+
+
+@app.callback()
+def main(
+    plugins_path: Annotated[
+        Path | None,
+        typer.Option(
+            "--plugins",
+            help=(
+                "Additional plugin directory with 'sources' and 'targets' subdirectories. "
+                "Modules found there are imported after built-in curaflow plugins."
+            ),
+            exists=True,
+            file_okay=False,
+            dir_okay=True,
+            readable=True,
+        ),
+    ] = None,
+) -> None:
+    """CLI entrypoint callback.
+
+    If ``--plugins`` is provided, dynamically import any source/target
+    plugins found under that directory *after* the built-in plugins are
+    registered. External modules are expected to use the standard
+    ``@source_plugin`` / ``@target_plugin`` decorators.
+    """
+
+    if plugins_path is not None:
+        load_plugins_from_dir(plugins_path)
+
 
 ManifestPath = Annotated[Path, typer.Option("-m", help="Path to manifest.yaml")]
 

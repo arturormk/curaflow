@@ -6,9 +6,12 @@ plugins register via decorators at import time.
 
 from __future__ import annotations
 
+import importlib.util
+import sys
 import traceback
 from collections.abc import Callable
 from dataclasses import dataclass
+from pathlib import Path
 from typing import Any, Final, Protocol, TypedDict
 
 PluginName = str  # reuse conceptually; Literal set maintained elsewhere
@@ -124,6 +127,50 @@ def list_targets() -> list[str]:  # convenience / testing
     return sorted(_REGISTRY.targets.keys())
 
 
+def load_plugins_from_dir(path: str | Path) -> None:
+    """Dynamically import source/target plugins from a filesystem directory.
+
+    The directory is expected to mirror the built-in layout:
+
+        <root>/sources/*.py
+        <root>/targets/*.py
+
+    Any imported module can register plugins via the usual
+    ``@source_plugin`` / ``@target_plugin`` decorators. This is intended
+    primarily for the CLI ``--plugins`` option so that curators can keep
+    project-specific plugins out of the core curaflow package.
+    """
+
+    root = Path(path)
+    if not root.exists() or not root.is_dir():
+        return
+
+    def _import_tree(kind: str) -> None:
+        base = root / kind
+        if not base.is_dir():
+            return
+        for file in base.glob("*.py"):
+            if file.name.startswith("__"):
+                continue
+            # Give each plugin module a unique, non-conflicting name
+            # based on its absolute path so repeated invocations do not
+            # clobber built-ins or each other.
+            mod_name = f"_curaflow_ext_{kind}_" + "_".join(
+                str(file.resolve()).split("/")[-4:]
+            ).replace(".", "_")
+            if mod_name in sys.modules:
+                continue
+            spec = importlib.util.spec_from_file_location(mod_name, file)
+            if spec is None or spec.loader is None:  # pragma: no cover - defensive
+                continue
+            module = importlib.util.module_from_spec(spec)
+            sys.modules[mod_name] = module
+            spec.loader.exec_module(module)
+
+    _import_tree("sources")
+    _import_tree("targets")
+
+
 __all__ = [
     "FetchResult",
     "PluginExecutionError",
@@ -131,6 +178,7 @@ __all__ = [
     "PluginRegistrationError",
     "SourcePlugin",
     "TargetPlugin",
+    "load_plugins_from_dir",
     "execute_source",
     "execute_target",
     "get_source",
