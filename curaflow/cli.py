@@ -10,6 +10,8 @@ import yaml
 from rich import print as rprint
 from rich.table import Table
 
+# Import plugins to register them
+from . import plugins  # noqa: F401
 from .dag import PluginName, SourceSpec, TargetSpec, needs_rebuild, topo_sort
 from .diffing import deep_diff
 from .fetcher import fetch_http_bytes, fetch_http_json
@@ -76,11 +78,25 @@ def plan(manifest: ManifestPath) -> None:
 
 
 @app.command()
-def fetch(manifest: ManifestPath) -> None:
+def fetch(
+    manifest: ManifestPath,
+    max_concurrent: int = typer.Option(10, help="Maximum concurrent fetches"),
+) -> None:
     """Fetch/normalize all sources (skips if unchanged), including dynamically fanned-out children."""
     ensure_base_dirs()
     sources, _ = load_manifest(manifest)
 
+    # Run the async fetch function
+    changed_any = asyncio.run(_fetch_parallel(sources, max_concurrent))
+
+    if changed_any:
+        rprint("[bold green]Some sources changed[/bold green]")
+    else:
+        rprint("[bold dim]No source changed[/bold dim]")
+
+
+async def _fetch_parallel(sources: dict[str, SourceSpec], max_concurrent: int) -> bool:
+    """Parallel fetch implementation with concurrency control."""
     # Load previously discovered dynamic sources
     dyn_path = APP_DIRS["meta"] / "sources_dynamic.json"
     dynamic_sources: dict[str, dict[str, Any]] = {}
@@ -92,7 +108,7 @@ def fetch(manifest: ManifestPath) -> None:
         except Exception:
             dynamic_sources = {}
 
-    # Work queue
+    # Initialize queue with manifest sources and dynamic sources
     queue: dict[str, dict[str, Any]] = {}
     for src in sources.values():
         queue[src.name] = {"name": src.name, "plugin": src.plugin, "params": src.params}
@@ -101,82 +117,101 @@ def fetch(manifest: ManifestPath) -> None:
 
     processed: set[str] = set()
     changed_any = False
+    semaphore = asyncio.Semaphore(max_concurrent)
 
-    def enqueue_children(children: list[dict[str, Any]]) -> None:
-        for ch in children:
-            nm = ch["name"]
-            if nm not in queue and nm not in processed:
-                queue[nm] = ch
-                dynamic_sources[nm] = ch
+    async def _fetch_single(spec: dict[str, Any]) -> tuple[str, bool, list[dict[str, Any]]]:
+        """Fetch a single source with concurrency control."""
+        async with semaphore:
+            name = spec["name"]
+            plugin = spec["plugin"]
+            params = spec.get("params", {})
 
-    while True:
-        next_item: dict[str, Any] | None = None
-        for nm, spec in queue.items():
-            if nm not in processed:
-                next_item = spec
-                break
-        if next_item is None:
-            break
-        name = next_item["name"]
-        plugin = next_item["plugin"]
-        params = next_item.get("params", {})
-        children: list[dict[str, Any]] = []
-
-        # Built-in legacy plugins not yet migrated to registry (http_json, http_bytes)
-        if plugin == "http_json":
-            url = params["url"]
-            headers = params.get("headers")
-            changed, _obj = asyncio.run(fetch_http_json(name, url, headers))
-            if changed:
-                rprint(f"[green]updated[/green] {name} -> data/sources/{name}.yaml")
-                changed_any = True
-            else:
-                rprint(f"[dim]unchanged[/dim] {name}")
-        elif plugin == "http_bytes":
-            url = params["url"]
-            headers = params.get("headers")
-            changed, _meta = asyncio.run(fetch_http_bytes(name, url, headers))
-            if changed:
-                rprint(f"[green]updated[/green] {name} -> data/sources/{name}.yaml (binary)")
-                changed_any = True
-            else:
-                rprint(f"[dim]unchanged[/dim] {name}")
-        else:
-            # registry-based plugin
             try:
-                # ensure module imported (for built-ins already imported via decorator)
-                # If not registered, we attempt a friendly skip.
-                get_source(plugin)
-            except Exception:
-                rprint(f"[yellow]SKIP[/yellow] {name}: plugin {plugin} not registered")
-                processed.add(name)
-                continue
-            res = asyncio.run(execute_source(plugin, {**params, "name": name}))
-            if "error" in res:
-                rprint(f"[red]error[/red] {name} ({plugin}) -> {res['error'].splitlines()[-1]}")
-            else:
-                if res.get("changed"):
-                    child_count = len(res.get("children", []) or [])
-                    suffix = f"  (+{child_count} children)" if child_count else ""
-                    rprint(f"[green]updated[/green] {name} -> data/sources/{name}.yaml{suffix}")
-                    changed_any = True
-                else:
-                    rprint(f"[dim]unchanged[/dim] {name}")
-                children = res.get("children", []) or []
+                # Built-in legacy plugins not yet migrated to registry (http_json, http_bytes)
+                if plugin == "http_json":
+                    url = params["url"]
+                    headers = params.get("headers")
+                    changed, _obj = await fetch_http_json(name, url, headers)
+                    if changed:
+                        rprint(f"[green]updated[/green] {name} -> data/sources/{name}.yaml")
+                    else:
+                        rprint(f"[dim]unchanged[/dim] {name}")
+                    return name, changed, []
 
-        if children:
-            enqueue_children(children)
-        processed.add(name)
+                elif plugin == "http_bytes":
+                    url = params["url"]
+                    headers = params.get("headers")
+                    changed, _meta = await fetch_http_bytes(name, url, headers)
+                    if changed:
+                        rprint(
+                            f"[green]updated[/green] {name} -> data/sources/{name}.yaml (binary)"
+                        )
+                    else:
+                        rprint(f"[dim]unchanged[/dim] {name}")
+                    return name, changed, []
+
+                else:
+                    # registry-based plugin
+                    try:
+                        get_source(plugin)
+                    except Exception:
+                        rprint(f"[yellow]SKIP[/yellow] {name}: plugin {plugin} not registered")
+                        return name, False, []
+
+                    res = await execute_source(plugin, {**params, "name": name})
+                    if "error" in res:
+                        rprint(
+                            f"[red]error[/red] {name} ({plugin}) -> {res['error'].splitlines()[-1]}"
+                        )
+                        return name, False, []
+                    else:
+                        changed = res.get("changed", False)
+                        children = res.get("children", []) or []
+                        if changed:
+                            child_count = len(children)
+                            suffix = f"  (+{child_count} children)" if child_count else ""
+                            rprint(
+                                f"[green]updated[/green] {name} -> data/sources/{name}.yaml{suffix}"
+                            )
+                        else:
+                            rprint(f"[dim]unchanged[/dim] {name}")
+                        return name, changed, children
+
+            except Exception as e:
+                rprint(f"[red]error[/red] {name} ({plugin}) -> {e!s}")
+                return name, False, []
+
+    # Process sources in waves to handle hierarchical fanout
+    while queue:
+        # Get all sources that are ready to process (not processed yet)
+        ready_sources = [spec for name, spec in queue.items() if name not in processed]
+
+        if not ready_sources:
+            break
+
+        # Process batch of sources concurrently
+        tasks = [_fetch_single(spec) for spec in ready_sources]
+        results = await asyncio.gather(*tasks)
+
+        # Process results and collect new children
+        for name, changed, children in results:
+            processed.add(name)
+            if changed:
+                changed_any = True
+
+            # Add children to dynamic sources and queue
+            for child in children:
+                child_name = child["name"]
+                if child_name not in queue and child_name not in processed:
+                    queue[child_name] = child
+                    dynamic_sources[child_name] = child
 
     # Persist dynamic registry
     if dynamic_sources:
         APP_DIRS["meta"].mkdir(parents=True, exist_ok=True)
         write_text_atomic(dyn_path, json.dumps(list(dynamic_sources.values()), indent=2))
 
-    if changed_any:
-        rprint("[bold green]Some sources changed[/bold green]")
-    else:
-        rprint("[bold dim]No source changed[/bold dim]")
+    return changed_any
 
 
 def _load_yaml(p: Path) -> Any:
