@@ -109,10 +109,19 @@ async def _fetch_parallel(sources: dict[str, SourceSpec], max_concurrent: int) -
         except Exception:
             dynamic_sources = {}
 
-    # Initialize queue with manifest sources and dynamic sources
+    # Initialize queue with manifest sources and dynamic sources. Tests may pass plain
+    # dicts masquerading as SourceSpec, so accept both dataclass and mapping inputs.
     queue: dict[str, dict[str, Any]] = {}
     for src in sources.values():
-        queue[src.name] = {"name": src.name, "plugin": src.plugin, "params": src.params}
+        if isinstance(src, dict):  # tolerate tests using raw dicts cast to SourceSpec
+            name = src["name"]
+            plugin = src["plugin"]
+            params = src.get("params", {})
+        else:
+            name = src.name
+            plugin = src.plugin
+            params = src.params
+        queue[name] = {"name": name, "plugin": plugin, "params": params}
     for dyn in dynamic_sources.values():
         queue.setdefault(dyn["name"], dyn)
 
