@@ -23,9 +23,9 @@ Introduce a lightweight in-process registry (`plugin_registry.py`) exposing:
 - Clear error types: `PluginRegistrationError`, `PluginNotFoundError`, `PluginExecutionError` (reserved for future richer reporting).
 - Minimal, typed Protocols for source and target plugins.
 
-`http_html` and `concat_json` migrated to decorators; legacy fetchers
-`http_json` / `http_bytes` remain temporarily direct calls for simplicity but can
-be migrated later (they already satisfy most semantics).
+All built-in sources and targets (`http_json`, `http_html`, `http_bytes`,
+`http_xml`, `concat_json`, `debug_print`) now participate in the unified
+registry via decorators; there are no remaining legacy direct-call fetchers.
 
 ## Consequences
 

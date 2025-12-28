@@ -12,7 +12,6 @@ from rich.table import Table
 
 from .dag import PluginName, SourceSpec, TargetSpec, needs_rebuild, topo_sort
 from .diffing import deep_diff
-from .fetcher import fetch_http_bytes, fetch_http_json
 from .plugin_registry import execute_source, execute_target, get_source, get_target
 from .utils import write_text_atomic
 
@@ -151,85 +150,57 @@ async def _fetch_parallel(
             params = spec.get("params", {})
 
             try:
-                # Built-in legacy plugins not yet migrated to registry (http_json, http_bytes)
-                if plugin == "http_json":
-                    url = params["url"]
-                    headers = params.get("headers")
-                    changed, _obj = await fetch_http_json(name, url, headers, force=force)
-                    if changed:
-                        rprint(f"[green]updated[/green] {name} -> data/sources/{name}.yaml")
-                    else:
-                        rprint(f"[dim]unchanged[/dim] {name}")
-                    return name, changed, []
+                # registry-based plugin
+                try:
+                    get_source(plugin)
+                except Exception:
+                    rprint(f"[yellow]SKIP[/yellow] {name}: plugin {plugin} not registered")
+                    return name, False, []
 
-                elif plugin == "http_bytes":
-                    url = params["url"]
-                    headers = params.get("headers")
-                    changed, _meta = await fetch_http_bytes(name, url, headers, force=force)
-                    if changed:
-                        rprint(
-                            f"[green]updated[/green] {name} -> data/sources/{name}.yaml (binary)"
-                        )
-                    else:
-                        rprint(f"[dim]unchanged[/dim] {name}")
-                    return name, changed, []
+                res = await execute_source(plugin, {**params, "name": name, "force": force})
+                if debug:
+                    data = res.get("data")
+                    children = res.get("children") or []
+                    rprint(f"[bold cyan]DEBUG source[/bold cyan] {name} ({plugin})")
+                    if data is not None:
+                        try:
+                            y = yaml.safe_dump(data, sort_keys=False, allow_unicode=True)
+                            rprint(y)
+                        except Exception:
+                            rprint(data)
 
-                else:
-                    # registry-based plugin
-                    try:
-                        get_source(plugin)
-                    except Exception:
-                        rprint(f"[yellow]SKIP[/yellow] {name}: plugin {plugin} not registered")
-                        return name, False, []
-
-                    res = await execute_source(plugin, {**params, "name": name, "force": force})
-                    if debug:
-                        data = res.get("data")
-                        children = res.get("children") or []
-                        rprint(f"[bold cyan]DEBUG source[/bold cyan] {name} ({plugin})")
-                        if data is not None:
+                        if isinstance(data, dict) and "extractions" in data:
                             try:
-                                y = yaml.safe_dump(data, sort_keys=False, allow_unicode=True)
-                                rprint(y)
+                                y_ex = yaml.safe_dump(
+                                    data.get("extractions"),
+                                    sort_keys=False,
+                                    allow_unicode=True,
+                                )
+                                rprint("[cyan]extractions:[/cyan]")
+                                rprint(y_ex)
                             except Exception:
-                                rprint(data)
-
-                            if isinstance(data, dict) and "extractions" in data:
-                                try:
-                                    y_ex = yaml.safe_dump(
-                                        data.get("extractions"),
-                                        sort_keys=False,
-                                        allow_unicode=True,
-                                    )
-                                    rprint("[cyan]extractions:[/cyan]")
-                                    rprint(y_ex)
-                                except Exception:
-                                    rprint("[cyan]extractions:[/cyan]")
-                                    rprint(data.get("extractions"))
-                        else:
-                            rprint("[dim]no data returned by plugin[/dim]")
-
-                        if children:
-                            rprint(
-                                f"[cyan]children:[/cyan] {json.dumps(children, ensure_ascii=False, indent=2)}"
-                            )
-                    if "error" in res:
-                        rprint(
-                            f"[red]error[/red] {name} ({plugin}) -> {res['error'].splitlines()[-1]}"
-                        )
-                        return name, False, []
+                                rprint("[cyan]extractions:[/cyan]")
+                                rprint(data.get("extractions"))
                     else:
-                        changed = res.get("changed", False)
-                        children = res.get("children", []) or []
-                        if changed:
-                            child_count = len(children)
-                            suffix = f"  (+{child_count} children)" if child_count else ""
-                            rprint(
-                                f"[green]updated[/green] {name} -> data/sources/{name}.yaml{suffix}"
-                            )
-                        else:
-                            rprint(f"[dim]unchanged[/dim] {name}")
-                        return name, changed, children
+                        rprint("[dim]no data returned by plugin[/dim]")
+
+                    if children:
+                        rprint(
+                            f"[cyan]children:[/cyan] {json.dumps(children, ensure_ascii=False, indent=2)}"
+                        )
+                if "error" in res:
+                    rprint(f"[red]error[/red] {name} ({plugin}) -> {res['error'].splitlines()[-1]}")
+                    return name, False, []
+                else:
+                    changed = res.get("changed", False)
+                    children = res.get("children", []) or []
+                    if changed:
+                        child_count = len(children)
+                        suffix = f"  (+{child_count} children)" if child_count else ""
+                        rprint(f"[green]updated[/green] {name} -> data/sources/{name}.yaml{suffix}")
+                    else:
+                        rprint(f"[dim]unchanged[/dim] {name}")
+                    return name, changed, children
 
             except Exception as e:
                 rprint(f"[red]error[/red] {name} ({plugin}) -> {e!s}")
