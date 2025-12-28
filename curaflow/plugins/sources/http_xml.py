@@ -81,9 +81,10 @@ async def fetch(
     headers = params.get("headers") or {}
     extract_specs = params.get("extract", [])
     fanout_specs = params.get("fanout", [])
+    force = bool(params.get("force", False))
 
     ensure_dir(SRC_DIR)
-    meta = FetchMeta.load(name)
+    meta = None if force else FetchMeta.load(name)
     async with httpx.AsyncClient(headers=headers) as client:
         resp = await conditional_get(
             client, url, meta.etag if meta else None, meta.last_modified if meta else None
@@ -136,7 +137,7 @@ async def fetch(
 
             # Slug heuristics
             slug_source = None
-            for candidate in ("post_title", "title", "ID", "id", "absolute_url"):
+            for candidate in ("ID", "id", "post_title", "title", "absolute_url"):
                 if candidate in rec:
                     slug_source = _first_str(rec[candidate])
                     if slug_source:
@@ -195,11 +196,19 @@ async def fetch(
         for idx, item in enumerate(ex.get(src, [])):
             if url_field not in item:
                 continue
-            child_name = name_t.format(
-                slug=item.get("slug", f"{idx}"),
-                index=idx,
-                absolute_url=item.get("absolute_url", ""),
-            )
+            # Allow name_template to reference any extracted field (e.g. {ID})
+            # while still providing slug/index/absolute_url defaults and avoiding
+            # KeyError for missing keys.
+            fmt_ctx: dict[str, Any] = dict(item)
+            fmt_ctx.setdefault("slug", item.get("slug", f"{idx}"))
+            fmt_ctx.setdefault("index", idx)
+            fmt_ctx.setdefault("absolute_url", item.get("absolute_url", ""))
+
+            class _SafeDict(dict[str, Any]):
+                def __missing__(self, key: str) -> str:
+                    return "{" + key + "}"
+
+            child_name = name_t.format_map(_SafeDict(fmt_ctx))
             child_params = dict(base_params)
             for k, v in list(child_params.items()):
                 if isinstance(v, str):

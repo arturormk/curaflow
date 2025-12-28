@@ -86,13 +86,18 @@ def fetch(
         False,
         help="Print source plugin outputs and extractions for debugging manifests",
     ),
+    force: bool = typer.Option(
+        False,
+        "--force",
+        help="Force re-fetch of all sources, ignoring HTTP cache metadata",
+    ),
 ) -> None:
     """Fetch/normalize all sources (skips if unchanged), including dynamically fanned-out children."""
     ensure_base_dirs()
     sources, _ = load_manifest(manifest)
 
     # Run the async fetch function
-    changed_any = asyncio.run(_fetch_parallel(sources, max_concurrent, debug=debug))
+    changed_any = asyncio.run(_fetch_parallel(sources, max_concurrent, debug=debug, force=force))
 
     if changed_any:
         rprint("[bold green]Some sources changed[/bold green]")
@@ -101,7 +106,10 @@ def fetch(
 
 
 async def _fetch_parallel(
-    sources: dict[str, SourceSpec], max_concurrent: int, debug: bool = False
+    sources: dict[str, SourceSpec],
+    max_concurrent: int,
+    debug: bool = False,
+    force: bool = False,
 ) -> bool:
     """Parallel fetch implementation with concurrency control."""
     # Load previously discovered dynamic sources
@@ -147,7 +155,7 @@ async def _fetch_parallel(
                 if plugin == "http_json":
                     url = params["url"]
                     headers = params.get("headers")
-                    changed, _obj = await fetch_http_json(name, url, headers)
+                    changed, _obj = await fetch_http_json(name, url, headers, force=force)
                     if changed:
                         rprint(f"[green]updated[/green] {name} -> data/sources/{name}.yaml")
                     else:
@@ -157,7 +165,7 @@ async def _fetch_parallel(
                 elif plugin == "http_bytes":
                     url = params["url"]
                     headers = params.get("headers")
-                    changed, _meta = await fetch_http_bytes(name, url, headers)
+                    changed, _meta = await fetch_http_bytes(name, url, headers, force=force)
                     if changed:
                         rprint(
                             f"[green]updated[/green] {name} -> data/sources/{name}.yaml (binary)"
@@ -174,7 +182,7 @@ async def _fetch_parallel(
                         rprint(f"[yellow]SKIP[/yellow] {name}: plugin {plugin} not registered")
                         return name, False, []
 
-                    res = await execute_source(plugin, {**params, "name": name})
+                    res = await execute_source(plugin, {**params, "name": name, "force": force})
                     if debug:
                         data = res.get("data")
                         children = res.get("children") or []

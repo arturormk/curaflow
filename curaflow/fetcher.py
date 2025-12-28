@@ -17,13 +17,21 @@ RAW_DIR: Final = Path("data/raw")
 
 class JsonFetcher(Protocol):
     async def __call__(
-        self, name: str, url: str, headers: dict[str, str] | None = None
+        self,
+        name: str,
+        url: str,
+        headers: dict[str, str] | None = None,
+        force: bool = False,
     ) -> tuple[bool, dict[str, Any] | None]: ...
 
 
 class BytesFetcher(Protocol):
     async def __call__(
-        self, name: str, url: str, headers: dict[str, str] | None = None
+        self,
+        name: str,
+        url: str,
+        headers: dict[str, str] | None = None,
+        force: bool = False,
     ) -> tuple[bool, dict[str, Any] | None]: ...
 
 
@@ -87,10 +95,13 @@ JsonObj = dict[str, Any]
 
 
 async def fetch_http_json(
-    name: str, url: str, headers: dict[str, str] | None = None
+    name: str,
+    url: str,
+    headers: dict[str, str] | None = None,
+    force: bool = False,
 ) -> tuple[bool, JsonObj | None]:
     ensure_dir(SRC_DIR)
-    meta = FetchMeta.load(name)
+    meta = None if force else FetchMeta.load(name)
     async with httpx.AsyncClient(headers=headers or {}) as client:
         resp = await conditional_get(
             client, url, meta.etag if meta else None, meta.last_modified if meta else None
@@ -133,11 +144,14 @@ async def fetch_http_json(
 
 
 async def fetch_http_bytes(
-    name: str, url: str, headers: dict[str, str] | None = None
+    name: str,
+    url: str,
+    headers: dict[str, str] | None = None,
+    force: bool = False,
 ) -> tuple[bool, dict[str, Any] | None]:
     ensure_dir(SRC_DIR)
     ensure_dir(RAW_DIR)
-    meta = FetchMeta.load(name)
+    meta = None if force else FetchMeta.load(name)
     async with httpx.AsyncClient(headers=headers or {}) as client:
         resp = await conditional_get(
             client, url, meta.etag if meta else None, meta.last_modified if meta else None
