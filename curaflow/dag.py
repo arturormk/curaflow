@@ -9,7 +9,7 @@ from typing import Literal
 
 from .utils import newest_mtime
 
-PluginName = Literal["concat_json", "http_json", "http_html", "http_bytes"]
+PluginName = Literal["concat_json", "http_json", "http_html", "http_bytes", "http_xml"]
 
 
 @dataclass
