@@ -11,10 +11,10 @@ python -m venv .venv && source .venv/bin/activate
 pip install -e .
 
 curaflow plan -m example/manifest.yaml
-curaflow fetch -m example/manifest.yaml
+curaflow fetch -m example/manifest.yaml  # use --max-concurrent to tune parallelism
 curaflow build -m example/manifest.yaml
 curaflow status -m example/manifest.yaml
-curaflow diff targets:tenants_bundle -m example/manifest.yaml
+curaflow diff targets:tenants_bundle
 ```
 
 ## Highlights

@@ -10,8 +10,6 @@ import yaml
 from rich import print as rprint
 from rich.table import Table
 
-# Import plugins to register them
-from . import plugins  # noqa: F401
 from .dag import PluginName, SourceSpec, TargetSpec, needs_rebuild, topo_sort
 from .diffing import deep_diff
 from .fetcher import fetch_http_bytes, fetch_http_json
@@ -38,6 +36,9 @@ APP_DIRS: Final = {
     "sources": Path("data/sources"),
     "targets": Path("data/targets"),
 }
+
+# Import plugins to register them (requires APP_DIRS to be defined first for some plugins)
+from . import plugins  # noqa: E402, F401
 
 app = typer.Typer(
     help="Curaflow: incremental fetch→normalize→build pipeline (with hierarchical fanout)."
