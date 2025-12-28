@@ -59,7 +59,13 @@ targets:
 		deps: [demo]
 ```
 
-Ship a module that imports the decorators (import side-effect registers). No auto-discovery yet—ensure your plugin module is imported before use (e.g. `import my_package.curaflow_plugins`).
+Ship a module that imports the decorators (import side-effect registers). No auto-discovery yet—ensure your plugin module is imported before use (e.g. `import my_package.curaflow_plugins`). For project-local plugins that live outside this repo, you can also point Curaflow at a directory containing `sources/` and `targets/` subfolders:
+
+```bash
+curaflow --plugins path/to/plugins fetch -m manifest.yaml
+```
+
+Every `*.py` file under `sources/`/`targets/` is imported and can register plugins via the usual decorators.
 
 Source plugin return tuple:
 1. `changed` (bool) – whether output YAML updated.
@@ -70,6 +76,31 @@ Target plugin return dict should include at minimum:
 * `previous` – prior object (if exists)
 * `current` – new artifact object
 * `output_path` – written file path
+
+### HTML helper for custom scrapers
+
+For HTML pages that need bespoke BeautifulSoup logic, Curaflow exposes a small helper in `curaflow.html_source_common` that takes care of HTTP fetching, YAML persistence, index annotation, and optional manifest-style fanout. You only provide an extractor that maps `(soup, url, params)` to a normalized structure:
+
+```python
+from typing import Any
+from bs4 import BeautifulSoup
+
+from curaflow.html_source_common import make_html_plugin
+from curaflow.html_utils import slugify
+
+
+def my_extractor(soup: BeautifulSoup, url: str, params: dict[str, Any]) -> dict[str, Any]:
+	items: list[dict[str, Any]] = []
+	for el in soup.select(".item"):
+		title = el.get_text(strip=True)
+		items.append({"title": title, "slug": slugify(title)})
+	return {"url": url, "extractions": {"items": items}}
+
+
+make_html_plugin("my_html_plugin", my_extractor)
+```
+
+You can then use `params.fanout` in the manifest to spawn child sources from `extractions.items`, following the same schema as `http_html`.
 
 See ADR-0012 for rationale.
 
