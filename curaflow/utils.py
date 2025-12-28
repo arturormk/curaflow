@@ -45,3 +45,33 @@ def write_bytes_atomic(path: Path, data: bytes) -> None:
 
 def now_ts() -> float:
     return time.time()
+
+
+def add_extraction_indices(obj: Any) -> None:
+    """Annotate extraction records with a 1-based ``_index`` field.
+
+    This walks a top-level ``extractions`` mapping, and for each value:
+    - if it's a list, each dict item gets ``_index = position`` (1-based)
+    - if it's a dict, each value dict also gets a positional ``_index``
+
+    Existing ``_index`` values are preserved.
+    """
+
+    if not isinstance(obj, dict):
+        return
+
+    extractions = obj.get("extractions")
+    if not isinstance(extractions, dict):
+        return
+
+    for group in extractions.values():
+        # List of records
+        if isinstance(group, list):
+            for idx, rec in enumerate(group, start=1):
+                if isinstance(rec, dict):
+                    rec.setdefault("_index", idx)
+        # Mapping of key -> record (e.g. already indexed by slug)
+        elif isinstance(group, dict):
+            for idx, rec in enumerate(group.values(), start=1):
+                if isinstance(rec, dict):
+                    rec.setdefault("_index", idx)

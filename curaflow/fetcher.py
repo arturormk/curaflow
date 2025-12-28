@@ -8,7 +8,14 @@ from typing import Any, Final, Protocol
 import httpx
 import yaml
 
-from .utils import ensure_dir, sha256_bytes, sha256_obj, write_bytes_atomic, write_text_atomic
+from .utils import (
+    add_extraction_indices,
+    ensure_dir,
+    sha256_bytes,
+    sha256_obj,
+    write_bytes_atomic,
+    write_text_atomic,
+)
 
 META_DIR: Final = Path(".curaflow/meta")
 SRC_DIR: Final = Path("data/sources")
@@ -115,6 +122,11 @@ async def fetch_http_json(
         return (False, prev)
     resp.raise_for_status()
     data = resp.json()
+
+    # If the JSON payload already follows the normalized ``extractions``
+    # convention, annotate its records with positional indices.
+    add_extraction_indices(data)
+
     digest = sha256_obj(data)
     if meta and meta.digest == digest:
         FetchMeta(

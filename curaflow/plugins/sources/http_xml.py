@@ -10,7 +10,7 @@ import yaml
 from ...fetcher import SRC_DIR, FetchMeta, conditional_get
 from ...html_utils import slugify
 from ...plugin_registry import source_plugin
-from ...utils import ensure_dir, sha256_obj, write_text_atomic
+from ...utils import add_extraction_indices, ensure_dir, sha256_obj, write_text_atomic
 
 
 def _add_value(rec: dict[str, Any], key: str, value: Any) -> None:
@@ -153,6 +153,10 @@ async def fetch(
             records.append(rec)
 
         normalized["extractions"][ename] = records
+
+    # Ensure all extraction records carry a 1-based ``_index`` field so
+    # consumers can preserve source order even when re-indexing by slug.
+    add_extraction_indices(normalized)
 
     digest = sha256_obj(normalized)
     if meta and meta.digest == digest:

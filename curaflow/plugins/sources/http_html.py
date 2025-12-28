@@ -9,7 +9,7 @@ import yaml
 from ...fetcher import SRC_DIR, FetchMeta, conditional_get
 from ...html_utils import make_soup, slugify
 from ...plugin_registry import source_plugin
-from ...utils import ensure_dir, sha256_obj, write_text_atomic
+from ...utils import add_extraction_indices, ensure_dir, sha256_obj, write_text_atomic
 
 
 @source_plugin("http_html")
@@ -89,6 +89,11 @@ async def fetch(
                 rec["slug"] = slugify(value or "item")
             items.append(rec)
         normalized["extractions"][ename] = items
+
+    # Attach 1-based positional indices within each extraction group so that
+    # callers can recover original source order even when re-indexing by slug
+    # or other keys.
+    add_extraction_indices(normalized)
 
     digest = sha256_obj(normalized)
     if meta and meta.digest == digest:
