@@ -1,5 +1,5 @@
 """Target plugins for curaflow."""
 
-from . import concat_json
+from . import concat_json, debug_print
 
-__all__ = ["concat_json"]
+__all__ = ["concat_json", "debug_print"]

@@ -82,13 +82,17 @@ def plan(manifest: ManifestPath) -> None:
 def fetch(
     manifest: ManifestPath,
     max_concurrent: int = typer.Option(10, help="Maximum concurrent fetches"),
+    debug: bool = typer.Option(
+        False,
+        help="Print source plugin outputs and extractions for debugging manifests",
+    ),
 ) -> None:
     """Fetch/normalize all sources (skips if unchanged), including dynamically fanned-out children."""
     ensure_base_dirs()
     sources, _ = load_manifest(manifest)
 
     # Run the async fetch function
-    changed_any = asyncio.run(_fetch_parallel(sources, max_concurrent))
+    changed_any = asyncio.run(_fetch_parallel(sources, max_concurrent, debug=debug))
 
     if changed_any:
         rprint("[bold green]Some sources changed[/bold green]")
@@ -96,7 +100,9 @@ def fetch(
         rprint("[bold dim]No source changed[/bold dim]")
 
 
-async def _fetch_parallel(sources: dict[str, SourceSpec], max_concurrent: int) -> bool:
+async def _fetch_parallel(
+    sources: dict[str, SourceSpec], max_concurrent: int, debug: bool = False
+) -> bool:
     """Parallel fetch implementation with concurrency control."""
     # Load previously discovered dynamic sources
     dyn_path = APP_DIRS["meta"] / "sources_dynamic.json"
@@ -169,6 +175,36 @@ async def _fetch_parallel(sources: dict[str, SourceSpec], max_concurrent: int) -
                         return name, False, []
 
                     res = await execute_source(plugin, {**params, "name": name})
+                    if debug:
+                        data = res.get("data")
+                        children = res.get("children") or []
+                        rprint(f"[bold cyan]DEBUG source[/bold cyan] {name} ({plugin})")
+                        if data is not None:
+                            try:
+                                y = yaml.safe_dump(data, sort_keys=False, allow_unicode=True)
+                                rprint(y)
+                            except Exception:
+                                rprint(data)
+
+                            if isinstance(data, dict) and "extractions" in data:
+                                try:
+                                    y_ex = yaml.safe_dump(
+                                        data.get("extractions"),
+                                        sort_keys=False,
+                                        allow_unicode=True,
+                                    )
+                                    rprint("[cyan]extractions:[/cyan]")
+                                    rprint(y_ex)
+                                except Exception:
+                                    rprint("[cyan]extractions:[/cyan]")
+                                    rprint(data.get("extractions"))
+                        else:
+                            rprint("[dim]no data returned by plugin[/dim]")
+
+                        if children:
+                            rprint(
+                                f"[cyan]children:[/cyan] {json.dumps(children, ensure_ascii=False, indent=2)}"
+                            )
                     if "error" in res:
                         rprint(
                             f"[red]error[/red] {name} ({plugin}) -> {res['error'].splitlines()[-1]}"
