@@ -60,6 +60,12 @@ async def _run_html_source(
 
     soup = make_soup(html)
 
+    # Expose the concrete source instance name to custom extractors via
+    # params so they can, for example, derive extraction group names
+    # from it (without changing the extractor call signature).
+    params = dict(params)
+    params.setdefault("_source_name", name)
+
     normalized: dict[str, Any] = extractor(soup, url, params)
     # Ensure minimal structure
     normalized.setdefault("url", url)

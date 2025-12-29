@@ -28,6 +28,25 @@ curaflow diff targets:tenants_bundle
 
 See `example/manifest.yaml` and comments in `curaflow/plugins/sources/http_html.py`.
 
+
+## How names map to files
+
+Curaflow relies heavily on `name` fields in the manifest. Roughly:
+
+	- If the source is binary (e.g. `http_bytes`), the downloaded file itself is stored under `data/raw/<name>.<ext>` and the YAML in `data/sources/<name>.yaml` contains metadata (URL, content type, digest, path to the raw file).
+	- Dynamically discovered sources (via fanout or meta-plugins such as `multiplex`) behave exactly the same: once created, they are just sources with a `name`.
+- **Source `name`** → normalized YAML at `data/sources/<name>.yaml`.
+	- If the source is binary (e.g. `http_bytes`), the downloaded file itself is stored under `data/raw/<name>.<ext>` and the YAML in `data/sources/<name>.yaml` contains metadata (URL, content type, digest, path to the raw file). For fanout children, this `<name>` is whatever was generated from the fanout `name_template`.
+	- Dynamically discovered sources (via fanout or meta-plugins such as `multiplex`) behave exactly the same: once created, they are just sources with a `name`.
+- **Target `name`** → built artifact at `data/targets/<name>.json` and its change history under `.curaflow/diffs/`.
+
+Within a single source's YAML, **extraction names** and **fanout `from` keys** are always *local*:
+
+- In the manifest: `extract: - name: items`.
+- In the YAML: `extractions.items`.
+- In fanout: `fanout: - from: items` (points at that extraction group, not at another source).
+
+Meta-plugins like `multiplex` can rewrite the *source* `name` (for example, turning `banners` into `es:banners` for an `es` instance) but do not touch these local extraction keys; this keeps manifests readable while still giving each concrete source a unique global name.
 ## Writing a Plugin
 
 Plugins are lightweight callables registered via decorators:
