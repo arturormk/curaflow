@@ -7,6 +7,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) 
 ## [Unreleased]
 ### Added
 - CHANGELOG scaffold (provenance documented via ADR-0010 policy).
+ - Support for loading additional source/target plugins from a local `--plugins` directory.
+ - HTML helper `html_source_common.make_html_plugin` for custom BeautifulSoup-based scrapers with manifest-style fanout.
+ - `multiplex` meta-source plugin to expand parameterized source templates into per-instance sources (e.g. multi-language manifests) while keeping extraction names local.
 
 ## [0.1.0] - 2025-09-13
 ### Added
