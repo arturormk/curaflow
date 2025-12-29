@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import asyncio
 import json
+import re
 from pathlib import Path
 from typing import Annotated, Any, Final, TypedDict
 
@@ -283,6 +284,24 @@ def _write_json(p: Path, obj: Any) -> None:
     write_text_atomic(p, json.dumps(obj, ensure_ascii=False, indent=2))
 
 
+def _walk_path(obj: Any, path: str) -> Any:
+    """Resolve a dotted path like ``extractions.tenant_links``.
+
+    Returns an empty list if any component is missing, so callers can
+    assume a list-like result without extra key checks.
+    """
+
+    cur: Any = obj
+    if not path:
+        return cur
+    for part in path.split("."):
+        if isinstance(cur, dict) and part in cur:
+            cur = cur[part]
+        else:
+            return []
+    return cur
+
+
 @app.command()
 def build(manifest: ManifestPath) -> None:
     ensure_base_dirs()
@@ -375,6 +394,173 @@ def status(manifest: ManifestPath) -> None:
             dep_paths.append(source_paths.get(d, APP_DIRS["targets"] / f"{d}.json"))
         tbl2.add_row(t.name, str(outp), "yes" if needs_rebuild([outp], dep_paths) else "no")
     rprint(tbl2)
+
+
+@app.command()
+def table(
+    source: Annotated[
+        str,
+        typer.Argument(
+            ...,
+            help="Source name; reads data/sources/<source>.yaml from the current APP_DIRS",
+        ),
+    ],
+    list_key: Annotated[
+        str,
+        typer.Option(
+            "--list-key",
+            "-k",
+            help=(
+                "Dotted path to the list of records inside the YAML. "
+                "If omitted and the YAML document is itself a list, that list is used."
+            ),
+        ),
+    ] = "",
+    columns: Annotated[
+        list[str] | None,
+        typer.Option(
+            "--columns",
+            "-c",
+            help=(
+                "Columns to show. Can be passed multiple times or as comma-separated values, "
+                "for example: --columns codigo,slug,marca"
+            ),
+        ),
+    ] = None,
+    sort: Annotated[
+        list[str] | None,
+        typer.Option(
+            "--sort",
+            "-s",
+            help=(
+                "Sort criteria. Each entry is +field or -field. "
+                "Can be passed multiple times or as comma-separated values."
+            ),
+        ),
+    ] = None,
+) -> None:
+    """Print a YAML source as a table.
+
+    This is a small utility for inspecting source data. It reads the
+    YAML file for the given ``source`` from ``APP_DIRS['sources']`` and
+    renders a Rich table on stdout.
+    """
+
+    p = APP_DIRS["sources"] / f"{source}.yaml"
+    if not p.exists():
+        rprint(f"[red]No such source YAML:[/red] {p}")
+        raise typer.Exit(code=1)
+
+    data = _load_yaml(p)
+
+    # Resolve the list of rows
+    raw_rows: Any
+    if list_key:
+        raw_rows = _walk_path(data, list_key)
+    else:
+        raw_rows = data
+
+    if isinstance(raw_rows, dict):
+        rows_seq: list[Any] = list(raw_rows.values())
+    elif isinstance(raw_rows, list):
+        rows_seq = list(raw_rows)
+    else:
+        rprint(
+            "[red]Expected a list of records at the given path; "
+            f"got {type(raw_rows).__name__} instead[/red]"
+        )
+        raise typer.Exit(code=1)
+
+    # Normalise into list of dicts for tabular display
+    rows: list[dict[str, Any]] = []
+    for item in rows_seq:
+        if isinstance(item, dict):
+            rows.append(item)
+        else:
+            rows.append({"value": item})
+
+    if not rows:
+        rprint("[dim]No rows to display[/dim]")
+        return
+
+    # Parse columns (support both repeated and comma-separated usage)
+    col_tokens = columns or []
+    parsed_cols: list[str] = []
+    for token in col_tokens:
+        for part in token.split(","):
+            part = part.strip()
+            if part:
+                parsed_cols.append(part)
+
+    if not parsed_cols:
+        # Derive from union of keys, stable sorted for determinism
+        key_set: set[str] = set()
+        for row in rows:
+            key_set.update(str(k) for k in row.keys())
+        parsed_cols = sorted(key_set)
+
+    # Parse sort criteria; later entries are lower precedence
+    sort_tokens = sort or []
+    sort_specs: list[tuple[str, bool]] = []  # (field, reverse)
+    for token in sort_tokens:
+        for part in token.split(","):
+            part = part.strip()
+            if not part:
+                continue
+            direction = part[0]
+            if direction in "+-":
+                field = part[1:]
+                reverse = direction == "-"
+            else:
+                field = part
+                reverse = False
+            if field:
+                sort_specs.append((field, reverse))
+
+    def _natural_key(value: Any) -> tuple[object, ...]:
+        """Return a key for *natural* ordering.
+
+        Splits strings into digit and non-digit segments so that
+        "10" > "2" numerically when sorting. Non-string values are
+        converted to strings.
+        """
+
+        if value is None:
+            return ()
+
+        text = str(value)
+        parts = re.split(r"(\d+)", text)
+        key_parts: list[object] = []
+        for part in parts:
+            if not part:
+                continue
+            if part.isdigit():
+                try:
+                    key_parts.append(int(part))
+                except ValueError:
+                    key_parts.append(part)
+            else:
+                key_parts.append(part)
+        return tuple(key_parts)
+
+    def _sort_key(field: str, row: dict[str, Any]) -> tuple[bool, tuple[object, ...]]:
+        v = row.get(field)
+        if v is None:
+            return True, ()
+        return False, _natural_key(v)
+
+    # Apply multi-key sort, lowest precedence first
+    for field, reverse in reversed(sort_specs):
+        rows.sort(key=lambda r: _sort_key(field, r), reverse=reverse)
+
+    tbl = Table(title=f"Source {source}")
+    for col in parsed_cols:
+        tbl.add_column(col)
+
+    for row in rows:
+        tbl.add_row(*[str(row.get(col, "")) for col in parsed_cols])
+
+    rprint(tbl)
 
 
 @app.command()

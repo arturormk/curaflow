@@ -15,6 +15,7 @@ curaflow fetch -m example/manifest.yaml  # use --max-concurrent to tune parallel
 curaflow build -m example/manifest.yaml
 curaflow status -m example/manifest.yaml
 curaflow diff targets:tenants_bundle
+curaflow table "es:tiendas" --columns codigo,slug,marca --sort +codigo
 ```
 
 ## Highlights
@@ -25,8 +26,34 @@ curaflow diff targets:tenants_bundle
 - **Targets:** Declare artifacts with deps; rebuild only when deps are newer.
 - **Diffs:** Structural diffs for targets stored in `.curaflow/diffs/`.
 - **Dynamic registry:** Discovered sources are persisted in `.curaflow/meta/sources_dynamic.json`.
+ - **Inspection tooling:** `curaflow table` prints YAML sources as pretty tables, with natural ("1, 2, 10") sorting on selected columns.
 
 See `example/manifest.yaml` and comments in `curaflow/plugins/sources/http_html.py`.
+
+
+## Inspecting sources with `table`
+
+For day-to-day maintenance and debugging of manifests, Curaflow exposes a small
+utility command that renders a YAML source as a terminal table:
+
+```bash
+curaflow table SOURCE \
+	--list-key extractions.items \
+	--columns codigo,slug,marca \
+	--sort +codigo
+```
+
+- `SOURCE` is the source name; it reads `data/sources/SOURCE.yaml` under the
+	current `APP_DIRS["sources"]`.
+- `--list-key` is an optional dotted path to the list or mapping of records
+	inside the YAML (e.g. `extractions.tenant_links`). If omitted and the YAML is
+	itself a list, that list is used.
+- `--columns` accepts either repeated flags or comma-separated values and
+	selects which keys to show as columns. If omitted, all keys found in the
+	records are shown.
+- `--sort` accepts `+field` / `-field` expressions (multiple or
+	comma-separated). Sorting is *natural*: digit segments are compared
+	numerically, so values like `1`, `2`, `10` appear in the expected order.
 
 
 ## How names map to files
