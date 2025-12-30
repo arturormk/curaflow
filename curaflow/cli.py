@@ -403,7 +403,10 @@ def build(manifest: ManifestPath) -> None:
             else:
                 rprint(f"[yellow]SKIP[/yellow] {tname}: plugin {spec.plugin} not registered")
                 continue
-        result = execute_target(spec.plugin, spec.deps, spec.params)
+        # Execute the target plugin with the *target name* as the first
+        # argument so that per-target outputs (e.g. JSON summaries) can be
+        # named consistently with the manifest.
+        result = execute_target(spec.plugin, spec.name, spec.deps, spec.params)
         outp = outputs[0]
         prev = result.get("previous")
         merged = result.get("current")

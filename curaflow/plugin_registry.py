@@ -114,9 +114,19 @@ async def execute_source(name: str, params: dict[str, object]) -> FetchResult:
         return FetchResult(name=name, changed=False, data=None, children=[], error="".join(tb))
 
 
-def execute_target(name: str, deps: list[str], params: dict[str, object]) -> dict[str, Any]:
-    plugin = get_target(name)
-    return plugin(name, deps, params)
+def execute_target(
+    plugin_name: str, target_name: str, deps: list[str], params: dict[str, object]
+) -> dict[str, Any]:
+    """Execute a target plugin.
+
+    ``plugin_name`` is the registry key (e.g. ``"media_convert"``), while
+    ``target_name`` is the *manifest target name* whose outputs are being
+    built. Target plugins receive ``target_name`` as their first argument and
+    should use it for any per-target filenames (such as JSON summaries).
+    """
+
+    plugin = get_target(plugin_name)
+    return plugin(target_name, deps, params)
 
 
 def list_sources() -> list[str]:  # convenience / testing

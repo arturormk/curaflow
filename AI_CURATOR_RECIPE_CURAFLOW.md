@@ -295,7 +295,8 @@ def build(name: str, deps: list[str], params: dict[str, object]) -> dict[str, An
 ```
 
 Contract:
-- `name` is the target name and output filename stem.
+- `name` is the target name and output filename stem (Curaflow passes the
+  *manifest target name* to plugins, not the plugin identifier).
 - `deps` are names of source/target artifacts this target depends on.
 - `params` is free‑form plugin configuration.
 - Return dict must include at least:
