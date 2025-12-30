@@ -263,6 +263,65 @@ At build time, `media_convert`:
 - Skips reconversion for an item when the existing output file is newer than its `raw_path`.
 - Writes a JSON summary `data/targets/{target}.json` with `base_dir`, `width`, `height`, and an `items` list describing inputs and outputs.
 
+You can safely reuse `media_convert` for multiple logical media groups by
+giving each target a distinct name and (usually) a distinct `base_dir`. For
+example:
+
+```yaml
+targets:
+	- name: es_banners_img
+		plugin: media_convert
+		deps: ["es:banners"]
+		params:
+			base_dir: "es/banners"
+			list_key: "extractions.banners_items"
+			id_field: "ID"
+			image_source: "es_banner_image:{id}"
+			name_template: "{id}.banner"
+			width: 1500
+			height: 500
+
+	- name: es_news_img
+		plugin: media_convert
+		deps: ["es:news"]
+		params:
+			base_dir: "es/news"
+			list_key: "extractions.news_items"
+			id_field: "slug"
+			image_source: "es_news_image:{id}"
+			name_template: "{id}.news"
+			width: 800
+			height: 800
+
+	- name: es_stores_logos
+		plugin: media_convert
+		deps: ["es:tiendas"]
+		params:
+			base_dir: "es/tiendas/logos"
+			list_key: "extractions.tiendas_items"
+			id_field: "slug"
+			image_source: "es_tienda_logo:{id}"
+			name_template: "{id}.logo"
+			width: 512
+			height: 512
+
+	- name: es_stores_photos
+		plugin: media_convert
+		deps: ["es:tiendas"]
+		params:
+			base_dir: "es/tiendas/photos"
+			list_key: "extractions.tiendas_items"
+			id_field: "slug"
+			image_source: "es_tienda_local:{id}"
+			name_template: "{id}.image"
+			width: 1920
+			height: 1080
+```
+
+This produces per-target summaries such as `es_banners_img.json` and
+`es_news_img.json`, and media files organised under their respective
+`base_dir` directories.
+
 ### Language-target multiplexing
 
 For multi-language QML list-models, manifests can stay DRY by using the
