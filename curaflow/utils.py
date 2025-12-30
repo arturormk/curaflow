@@ -75,3 +75,28 @@ def add_extraction_indices(obj: Any) -> None:
             for idx, rec in enumerate(group.values(), start=1):
                 if isinstance(rec, dict):
                     rec.setdefault("_index", idx)
+
+
+def substitute_placeholders(obj: Any, mapping: dict[str, str]) -> Any:
+    """Recursively substitute placeholder substrings in all strings of *obj*.
+
+    This walks lists and dicts, replacing each occurrence of every
+    ``mapping`` key in any string value with its corresponding value.
+    Non-container and non-string values are left unchanged.
+    """
+
+    if isinstance(obj, str):
+        result = obj
+        for placeholder, value in mapping.items():
+            if placeholder:
+                result = result.replace(placeholder, value)
+        return result
+
+    if isinstance(obj, list):
+        return [substitute_placeholders(item, mapping) for item in obj]
+
+    if isinstance(obj, dict):
+        return {k: substitute_placeholders(v, mapping) for k, v in obj.items()}
+
+    # Leave other types (int, bool, None, etc.) untouched
+    return obj

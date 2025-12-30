@@ -11,6 +11,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) 
 - HTML helper `html_source_common.make_html_plugin` for custom BeautifulSoup-based scrapers with manifest-style fanout.
 - `multiplex` meta-source plugin to expand parameterized source templates into per-instance sources (e.g. multi-language manifests) while keeping extraction names local.
  - QML helper `qml_target_common.make_qml_target_plugin` for YAML-backed `ListModel` targets that centralizes YAML IO and summaries while leaving QML construction in per-target `_render_qml` functions.
+ - `lang_targets` pseudo-plugin for manifest-time expansion of language-specific QML targets (e.g. `es_banners_qml`, `en_banners_qml`) using a `$lang$` placeholder for name, deps and base_dir.
 
 ## [0.1.0] - 2025-09-13
 ### Added

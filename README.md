@@ -228,6 +228,34 @@ The helper will:
 Target authors remain in full control of how the QML is constructed while
 avoiding repetitive boilerplate for YAML IO and summaries.
 
+### Language-target multiplexing
+
+For multi-language QML list-models, manifests can stay DRY by using the
+`lang_targets` pseudo-plugin. Instead of repeating one target block per
+language, you declare language codes once and use a `$lang$` placeholder in
+the target templates for the pieces that vary (name, dependency, base_dir,
+and any language-specific YAML paths):
+
+```yaml
+targets:
+	- name: qml-lang
+		plugin: lang_targets
+		params:
+			languages: ["es", "en"]
+			targets:
+				- name: "$lang$_banners_qml"
+					plugin: qml_banners
+					deps: ["$lang$:banners"]
+					params:
+						base_dir: "$lang$/banners"
+						list_key: "extractions.banners_items"
+```
+
+At manifest load time, this expands into concrete targets like
+`es_banners_qml` and `en_banners_qml` with the expected `deps` and
+`base_dir` values, so the rest of the DAG/build pipeline only sees
+ordinary `TargetSpec` entries.
+
 ## Attribution & Curation
 Curaflow is **AI-assisted** and **human-curated**. AI (GitHub Copilot / GPT models) generated initial scaffolding and subsequent instrumentation following the policy in ADR-0010. All architectural and process decisions are recorded as ADRs in `docs/adr/`. Human maintainers review intent, enforce tests, and ensure transparency.
 

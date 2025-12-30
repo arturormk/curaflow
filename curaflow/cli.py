@@ -3,8 +3,9 @@ from __future__ import annotations
 import asyncio
 import json
 import re
+from copy import deepcopy
 from pathlib import Path
-from typing import Annotated, Any, Final, TypedDict
+from typing import Annotated, Any, Final, TypedDict, cast
 
 import typer
 import yaml
@@ -20,7 +21,7 @@ from .plugin_registry import (
     get_target,
     load_plugins_from_dir,
 )
-from .utils import write_text_atomic
+from .utils import substitute_placeholders, write_text_atomic
 
 
 class ManifestSource(TypedDict, total=False):
@@ -31,9 +32,65 @@ class ManifestSource(TypedDict, total=False):
 
 class ManifestTarget(TypedDict, total=False):
     name: str
-    plugin: PluginName
+    # Manifest targets may include pseudo-plugins (e.g. "lang_targets")
+    # that are expanded before DAG/PluginName types are enforced.
+    plugin: str
     deps: list[str]
     params: dict[str, object]
+
+
+def _expand_lang_targets(raw_targets: list[ManifestTarget]) -> list[ManifestTarget]:
+    """Expand any ``lang_targets`` pseudo-plugin entries into concrete targets.
+
+    A ``lang_targets`` entry has the following expected shape in the manifest::
+
+        - name: lang-qml
+          plugin: lang_targets
+          params:
+            languages: ["es", "en"]
+            targets:
+              - name: "$lang$_banners_qml"
+                plugin: qml_banners
+                deps: ["$lang$:banners"]
+                params:
+                  base_dir: "$lang$/banners"
+                  # ... other plugin-specific params ...
+
+    For each language code, placeholders of the form ``"$lang$"`` are
+    substituted across the nested target templates using
+    :func:`substitute_placeholders`, and the resulting plain targets are
+    returned. The original ``lang_targets`` entry itself does not become a
+    target.
+    """
+
+    expanded: list[ManifestTarget] = []
+
+    for t in raw_targets:
+        if t.get("plugin") != "lang_targets":
+            expanded.append(t)
+            continue
+
+        params = t.get("params") or {}
+        languages = params.get("languages") or []
+        templates = params.get("targets") or []
+
+        if not isinstance(languages, list) or not all(isinstance(x, str) for x in languages):
+            raise TypeError("lang_targets expects 'languages' to be a list of strings")
+        if not isinstance(templates, list):
+            raise TypeError("lang_targets expects 'targets' to be a list of target templates")
+
+        for lang in languages:
+            mapping = {"$lang$": lang}
+            for tmpl in templates:
+                if not isinstance(tmpl, dict):
+                    continue
+                concrete = substitute_placeholders(deepcopy(tmpl), mapping)
+                # Name is required; fall back to a deterministic synthetic name
+                name = str(concrete.get("name") or f"{lang}:{t.get('name', 'lang')}")
+                concrete["name"] = name
+                expanded.append(concrete)
+
+    return expanded
 
 
 APP_DIRS: Final = {
@@ -91,9 +148,14 @@ def load_manifest(manifest: Path) -> tuple[dict[str, SourceSpec], dict[str, Targ
         sources[s["name"]] = SourceSpec(
             name=s["name"], plugin=s["plugin"], params=s.get("params", {})
         )
-    for t in m.get("targets", []):
+    raw_targets: list[ManifestTarget] = list(m.get("targets", []))
+    expanded_targets = _expand_lang_targets(raw_targets)
+    for t in expanded_targets:
         targets[t["name"]] = TargetSpec(
-            name=t["name"], plugin=t["plugin"], deps=t.get("deps", []), params=t.get("params", {})
+            name=t["name"],
+            plugin=cast(PluginName, t["plugin"]),
+            deps=t.get("deps", []),
+            params=t.get("params", {}),
         )
     return sources, targets
 

@@ -4,31 +4,7 @@ from copy import deepcopy
 from typing import Any
 
 from ...plugin_registry import source_plugin
-
-
-def _substitute_placeholders(obj: Any, mapping: dict[str, str]) -> Any:
-    """Recursively substitute placeholders in all strings of a structure.
-
-    Placeholders are literal substrings; we do a simple replace for each
-    mapping key. This keeps the logic generic and avoids coupling to a
-    specific template syntax beyond "find this token and replace it".
-    """
-
-    if isinstance(obj, str):
-        result = obj
-        for placeholder, value in mapping.items():
-            if placeholder:
-                result = result.replace(placeholder, value)
-        return result
-
-    if isinstance(obj, list):
-        return [_substitute_placeholders(item, mapping) for item in obj]
-
-    if isinstance(obj, dict):
-        return {k: _substitute_placeholders(v, mapping) for k, v in obj.items()}
-
-    # Leave other types (int, bool, None, etc.) untouched
-    return obj
+from ...utils import substitute_placeholders
 
 
 @source_plugin("multiplex")
@@ -82,7 +58,7 @@ async def multiplex(
                 continue  # robust in face of bad input
 
             concrete = deepcopy(tmpl)
-            concrete = _substitute_placeholders(concrete, placeholder_map)
+            concrete = substitute_placeholders(concrete, placeholder_map)
 
             # Unconditionally prefix the instance key to the logical
             # template name so manifests can stay generic (e.g.
