@@ -150,6 +150,84 @@ You can then use `params.fanout` in the manifest to spawn child sources from `ex
 
 See ADR-0012 for rationale.
 
+### QML helper for list-model targets
+
+For simple QML `ListModel` targets backed by YAML sources, Curaflow exposes a
+small helper in `curaflow.qml_target_common` that centralises YAML loading,
+QML/JSON writing, and some common utilities. You only provide:
+
+- a mapping of default parameters (including any `xxx_field` keys you care
+  about), and
+- a `_render_qml(version, items, cfg)` function that returns the QML text and
+  the list of elements to store in the JSON summary.
+
+Example::
+
+	from collections.abc import Iterable, Mapping
+	from typing import Any
+
+	from curaflow.qml_target_common import (
+		make_qml_target_plugin,
+		qml_escape,
+	)
+
+
+	def _render_qml(
+		version: str,
+		items: Iterable[Mapping[str, Any]],
+		cfg: Mapping[str, Any],
+	) -> tuple[str, list[dict[str, Any]]]:
+		index_field = str(cfg.get("index_field", "_index"))
+		key_field = str(cfg.get("key_field", "slug"))
+
+		elements: list[dict[str, Any]] = []
+		for item in items:
+			idx = int(item.get(index_field, 0) or 0)
+			key = str(item.get(key_field, ""))
+			elements.append({"idx": idx, "key": key})
+
+		elements.sort(key=lambda e: e["idx"])
+
+		lines: list[str] = []
+		lines.append(f"import QtQuick {version}")
+		lines.append("")
+		lines.append("ListModel {")
+		for el in elements:
+			idx = el["idx"]
+			key = qml_escape(el["key"])
+			lines.append("    ListElement {")
+			lines.append(f"        idx: {idx}")
+			lines.append(f"        key: \"{key}\"")
+			lines.append("    }")
+		lines.append("}")
+		lines.append("")
+
+		return "\n".join(lines), elements
+
+
+	make_qml_target_plugin(
+		"qml_example",
+		default_params={
+			"base_dir": "es/example",
+			"qml_version": "2.2",
+			"qml_filename": "ListModelExample.qml",
+			"list_key": "extractions.example_items",
+			"index_field": "_index",
+			"key_field": "slug",
+		},
+		render_qml=_render_qml,
+	)
+
+The helper will:
+
+- load the first dependency's YAML from `APP_DIRS["sources"]`,
+- resolve `list_key` inside that YAML to obtain the list of items,
+- call `_render_qml` with the resolved items and merged configuration, and
+- write both the QML file and a JSON summary under `APP_DIRS["targets"]`.
+
+Target authors remain in full control of how the QML is constructed while
+avoiding repetitive boilerplate for YAML IO and summaries.
+
 ## Attribution & Curation
 Curaflow is **AI-assisted** and **human-curated**. AI (GitHub Copilot / GPT models) generated initial scaffolding and subsequent instrumentation following the policy in ADR-0010. All architectural and process decisions are recorded as ADRs in `docs/adr/`. Human maintainers review intent, enforce tests, and ensure transparency.
 
