@@ -35,8 +35,9 @@ This experimental recipe tailors the Software Curatorship methodology to Curaflo
   - `sources[]`: { `name`, `plugin`, `params` }
   - `targets[]`: { `name`, `plugin`, `deps`, `params` }
 - `http_html.params`:
-  - `extract`: list of { `name`, `css`, `attr`, `base?` } → yields normalized records with `text`/`href`/`src`, `absolute_url` and `slug`.
-  - `fanout`: list of { `from`, `plugin`, `name_template?`, `url_field?`, `params` } → creates child sources.
+  - `extract`: list of { `name`, `css`, `attr`, `base?`, `inject?` } → yields normalized records with `text`/`href`/`src`, `absolute_url`, `slug`, and any injected fields.
+    - `inject` (optional): map of `field_name -> template_or_value`. String values are formatted with the current record (e.g., `"{slug}"`, `"{absolute_url}"`) and written into each extracted record.
+  - `fanout`: list of { `from`, `plugin`, `name_template?`, `url_field?`, `params` } → creates child sources. All nested string values in `params` are formatted with the parent record, so templates can appear anywhere inside the structure.
 - Naming rules:
   - `name` becomes filename; must be stable and slug-safe; fanout `name_template` should ensure uniqueness (e.g., `{slug}`, `{index}`).
 - Compatibility:

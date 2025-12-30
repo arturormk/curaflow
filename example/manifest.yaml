@@ -19,10 +19,14 @@ sources:
               - name: image_links
                 css: ".tenant-gallery img"
                 attr: src
+                # Example of injecting a parent-derived field into each image record.
+                # Here we keep the tenant slug so binary assets can be named by shop.
+                inject:
+                  tenant_slug: "{slug}"
             fanout:
               - from: image_links
                 plugin: http_bytes
-                name_template: "tenant-img:{slug}:{index}"
+                name_template: "tenant-img:{tenant_slug}:{index}"
                 params:
                   url: "{absolute_url}"
 

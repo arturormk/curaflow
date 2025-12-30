@@ -59,12 +59,32 @@ async def fetch(
     html = resp.text
     soup = make_soup(html)
 
+    def _format_nested(value: Any, record: dict[str, Any]) -> Any:
+        """Recursively format strings in nested params dicts/lists with record fields.
+
+        This mirrors the shallow string ``.format`` used for fanout params, but
+        extends it to nested structures so templates can appear inside, e.g.,
+        extraction specs.
+        """
+
+        if isinstance(value, str):
+            try:
+                return value.format(**record)
+            except KeyError:
+                return value
+        if isinstance(value, dict):
+            return {k: _format_nested(v, record) for k, v in value.items()}
+        if isinstance(value, list):
+            return [_format_nested(v, record) for v in value]
+        return value
+
     normalized: dict[str, Any] = {"url": url, "extractions": {}}
     for es in extract_specs:
         ename = es["name"]
         css = es["css"]
         attr = es.get("attr", "text")
         base = es.get("base") or url
+        inject_spec = es.get("inject") or {}
         items: list[dict[str, Any]] = []
         for el in soup.select(css):
             rec: dict[str, Any] = {}
@@ -87,6 +107,22 @@ async def fetch(
                 rec["slug"] = slugify(rec["absolute_url"].rstrip("/").split("/")[-1])
             else:
                 rec["slug"] = slugify(value or "item")
+
+            # Optional field injection: copy or derive extra fields per record.
+            # ``inject`` is a mapping of field name -> value/template. Templates
+            # are formatted with the record itself (e.g. "{slug}"). Values that
+            # were already formatted upstream (e.g. via parent fanout params)
+            # are passed through unchanged.
+            if inject_spec:
+                for k, v in inject_spec.items():
+                    if isinstance(v, str):
+                        try:
+                            rec[k] = v.format(**rec)
+                        except KeyError:
+                            rec[k] = v
+                    else:
+                        rec[k] = v
+
             items.append(rec)
         normalized["extractions"][ename] = items
 
@@ -149,13 +185,7 @@ async def fetch(
                     return "{" + key + "}"
 
             child_name = name_t.format_map(_SafeDict(fmt_ctx))
-            child_params = dict(base_params)
-            for k, v in list(child_params.items()):
-                if isinstance(v, str):
-                    try:
-                        child_params[k] = v.format(**item)
-                    except KeyError:
-                        pass
+            child_params = _format_nested(base_params, item)
             if "url" not in child_params:
                 child_params["url"] = item[url_field]
             children.append({"name": child_name, "plugin": child_plugin, "params": child_params})

@@ -41,6 +41,26 @@ def _first_str(value: Any) -> str | None:
     return str(value)
 
 
+def _format_nested(value: Any, record: dict[str, Any]) -> Any:
+    """Recursively format strings in nested params dicts/lists with record fields.
+
+    This allows templates like "{slug}" to appear anywhere inside a fanout
+    ``params`` structure (including nested extraction specs) and be resolved
+    against the parent record before being passed to child plugins.
+    """
+
+    if isinstance(value, str):
+        try:
+            return value.format(**record)
+        except KeyError:
+            return value
+    if isinstance(value, dict):
+        return {k: _format_nested(v, record) for k, v in value.items()}
+    if isinstance(value, list):
+        return [_format_nested(v, record) for v in value]
+    return value
+
+
 @source_plugin("http_xml")
 async def fetch(
     name: str, params: dict[str, Any]
@@ -213,14 +233,7 @@ async def fetch(
                     return "{" + key + "}"
 
             child_name = name_t.format_map(_SafeDict(fmt_ctx))
-            child_params = dict(base_params)
-            for k, v in list(child_params.items()):
-                if isinstance(v, str):
-                    try:
-                        child_params[k] = v.format(**item)
-                    except KeyError:
-                        # Leave template as-is if field is missing
-                        pass
+            child_params = _format_nested(base_params, item)
             if "url" not in child_params:
                 child_params["url"] = item[url_field]
             children.append({"name": child_name, "plugin": child_plugin, "params": child_params})
