@@ -16,6 +16,7 @@ PluginName = Literal[
     "http_html",
     "http_bytes",
     "http_xml",
+    "media_convert",
 ]
 
 

@@ -5,7 +5,7 @@ Import all source and target plugins to register them via decorators.
 
 # Import all built-in plugins to auto-register them
 from .sources import http_bytes, http_html, http_json, http_xml, multiplex
-from .targets import concat_json, debug_print
+from .targets import concat_json, debug_print, media_convert
 
 __all__ = [
     "http_json",
@@ -15,4 +15,5 @@ __all__ = [
     "multiplex",
     "concat_json",
     "debug_print",
+    "media_convert",
 ]

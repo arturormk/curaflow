@@ -228,6 +228,41 @@ The helper will:
 Target authors remain in full control of how the QML is constructed while
 avoiding repetitive boilerplate for YAML IO and summaries.
 
+### Media conversion target plugin
+
+Curaflow includes a generic `media_convert` target plugin for turning
+`http_bytes` metadata into normalized image/video assets.
+
+Typical manifest usage:
+
+```yaml
+targets:
+	- name: banners_img
+		plugin: media_convert
+		deps: ["banners"]
+		params:
+			base_dir: "es/banners"           # under data/targets/
+			list_key: "extractions.banners_items"
+			id_field: "ID"                   # field in the list used as media id
+			image_source: "banner_image:{id}"  # name of corresponding http_bytes sources
+			name_template: "{id}"            # optional; base filename without extension
+			width: 800                         # target width in pixels
+			height: 600                        # target height in pixels
+```
+
+At build time, `media_convert`:
+
+- Reads the first dependency YAML and walks `list_key` to obtain a list of items.
+- For each item, formats `image_source` to locate a corresponding `http_bytes` YAML.
+- Filters to `image/*` or `video/*` content types and reads `raw_path` into `data/raw/`.
+- Formats `name_template` (default `{id}`) to obtain the base filename, then chooses the extension based on media type:
+	- `image/svg+xml` → PNG via `rsvg-convert`.
+	- Other `image/*` except `image/gif` → PNG via ImageMagick `convert` with center‑crop/letterbox.
+	- `image/gif` and all `video/*` → MP4 via `ffmpeg`.
+- Writes the converted files under `data/targets/<base_dir>/<name>.<ext>`.
+- Skips reconversion for an item when the existing output file is newer than its `raw_path`.
+- Writes a JSON summary `data/targets/{target}.json` with `base_dir`, `width`, `height`, and an `items` list describing inputs and outputs.
+
 ### Language-target multiplexing
 
 For multi-language QML list-models, manifests can stay DRY by using the

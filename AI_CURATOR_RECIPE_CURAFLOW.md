@@ -220,8 +220,41 @@ targets:
     params: { ... }
 ```
 
-Core built‑in target plugin:
+Core built‑in target plugins:
 - `concat_json` — bundles one or more dependency YAMLs into a single JSON artifact.
+- `debug_print` — loads each dependency, prints a debug view, and writes a merged JSON snapshot.
+- `media_convert` — converts binary media referenced from a list‑like source into normalized image/video assets.
+
+`media_convert` contract (high‑level):
+
+- Manifest shape:
+
+  ```yaml
+  targets:
+    - name: "media_img"
+      plugin: media_convert
+      deps: ["items"]           # first dep is the YAML list
+      params:
+        base_dir: "es/items"    # under data/targets/
+        list_key: "extractions.items"
+        id_field: "ID"          # field in the list used as media id
+        image_source: "item_image:{id}"  # name of corresponding http_bytes sources
+        name_template: "{id}"   # optional; base filename without extension
+        width: 800                # required; target width in pixels
+        height: 600               # required; target height in pixels
+  ```
+
+- Behavior:
+  - Loads the first dependency YAML and walks `list_key` to obtain the list of records.
+  - For each record, formats `image_source` to locate a corresponding `http_bytes` YAML (under `data/sources/`).
+  - Filters to `image/*` or `video/*` content types and reads the `raw_path` into `data/raw/`.
+  - Formats `name_template` (default `{id}`) to obtain the base filename, then chooses the extension based on media type:
+    - `image/svg+xml` → PNG via `rsvg-convert`.
+    - Other `image/*` except `image/gif` → PNG via ImageMagick `convert` with center‑crop/letterbox.
+    - `image/gif` and all `video/*` → MP4 via `ffmpeg`.
+  - Writes the converted assets under `data/targets/<base_dir>/<name>.<ext>`.
+  - Skips reconversion for a record when the existing output file is newer than its `raw_path`.
+  - Writes a JSON summary `data/targets/{target}.json` with `base_dir`, `width`, `height`, and an `items` list of input/output metadata.
 
 Targets are built in topological order based on the `deps` graph, using `needs_rebuild` to decide whether to rebuild.
 
