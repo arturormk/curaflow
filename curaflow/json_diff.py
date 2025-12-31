@@ -130,9 +130,7 @@ def main(argv: list[str] | None = None) -> int:
         return 1
 
     if history_dir.exists() and not history_dir.is_dir():
-        sys.stderr.write(
-            "json-diff: history path exists and is not a directory: " f"{history_dir}\n"
-        )
+        sys.stderr.write(f"json-diff: history path exists and is not a directory: {history_dir}\n")
         return 1
 
     # Ensure history directory exists so we can create snapshots.
