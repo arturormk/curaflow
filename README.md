@@ -1,5 +1,7 @@
 # Curaflow
 
+[![CI](https://github.com/arturormk/curaflow/actions/workflows/ci.yml/badge.svg)](https://github.com/arturormk/curaflow/actions/workflows/ci.yml)
+
 *Incremental, parallel fetch → normalize → build for web-curated datasets.*
 
 **New:** hierarchical fanout: scrape an index page → fan out to tenant pages → fan out to images (binary).
