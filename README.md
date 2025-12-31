@@ -279,6 +279,24 @@ successive versions of this JSON using `deep_diff` and store them under
 - Inspect the diff file or perform additional domain-specific analysis to
 	generate human-friendly change notifications.
 
+For finer-grained store change reports, the repository includes a small
+helper module `curaflow.json_diff` that compares the current
+`watch_stores.json` against the latest snapshot in a history directory and
+writes a human-readable report only when differences are found. Typical
+usage:
+
+```bash
+python -m curaflow.json_diff \
+	--history history \
+	--output /tmp/stores-diff \
+	data/targets/watch_stores.json
+```
+
+If `/tmp/stores-diff` is created, it contains a summary of items only in the
+previous snapshot (removed/changed) and only in the latest snapshot
+(added/changed). This file can be attached to notifications or archived
+alongside the JSON snapshots.
+
 ### Media conversion target plugin
 
 Curaflow includes a generic `media_convert` target plugin for turning
