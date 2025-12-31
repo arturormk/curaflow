@@ -22,7 +22,7 @@ dependencies = [
 ]
 
 [tool.setuptools]
-packages = ["curaflow"]
+# Let setuptools automatically find all packages and subpackages
 
 [project.scripts]
 curaflow = "curaflow.cli:app"
