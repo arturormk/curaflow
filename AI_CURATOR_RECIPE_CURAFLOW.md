@@ -114,6 +114,7 @@ Core built‑in source plugins:
 - `http_json` — fetch JSON, extract subtrees (see plugin docs), optionally fan out.
 - `http_xml` — fetch XML, extract via `ElementTree.findall` paths, normalize to YAML, optionally fan out.
 - `http_bytes` — fetch binary content (images, PDFs, etc.) and store in `data/raw/`.
+ - `ods_table` — read an ODS spreadsheet sheet into an `extractions` table from local files.
 
 #### 4.1.1 `http_html.params`
 
@@ -207,6 +208,41 @@ Key points (full details in the plugin docstring):
 - `headers`: optional.
 - `force`: optional; forces re‑fetch ignoring HTTP cache metadata.
 - Writes metadata under `.curaflow/meta/` and binary content under `data/raw/{name}.*` with an extension inferred from content type (falling back to `application/octet-stream`).
+
+#### 4.1.4 `ods_table.params`
+
+```yaml
+params:
+  path: "ccastermas.ods"   # local ODS file path
+  sheet: "marcas"          # optional; first sheet if omitted
+  group_key: "store_polygons"  # key under `extractions` for the records list
+  columns:                  # mapping YAML field name -> ODS header title
+    slug: "slug"
+    polygon: "poly[]"
+    brand: "marca"
+    floor: "planta"
+```
+
+Behavior:
+- Reads the given sheet from a local `.ods` file using `pyexcel-ods3`.
+- Treats the first row as headers and builds a mapping from each YAML field name in
+  `columns` to the corresponding column index.
+- For each subsequent row, constructs a record containing the requested fields
+  (normalized to trimmed strings) and appends it to `extractions[group_key]`.
+- Returns a document shaped like:
+
+  ```yaml
+  extractions:
+    <group_key>:
+      - {...record...}
+  ```
+
+- Incremental behavior:
+  - On each run, the structured result is compared (via SHA‑256 over the JSON
+    representation) against any existing `data/sources/{name}.yaml`.
+  - If the content is unchanged, the plugin returns `changed = False` and reuses
+    the previous data so `curaflow fetch` can report "No source changed" and
+    skip unnecessary rebuilds.
 
 ### 4.2 Targets
 

@@ -20,7 +20,7 @@ curaflow table "es:tiendas" --columns codigo,slug,marca --sort +codigo
 
 ## Highlights
 
-- **Sources (YAML):** `http_json`, `http_html` (CSS selectors), `http_xml` (XML via ElementTree paths), `http_bytes` (binary, metadata YAML + file in `data/raw/`).
+- **Sources (YAML):** `http_json`, `http_html` (CSS selectors), `http_xml` (XML via ElementTree paths), `http_bytes` (binary, metadata YAML + file in `data/raw/`), `ods_table` (local ODS sheets into extraction tables).
 - **Hierarchical fanout:** HTML extractions can spawn child sources (pages → images).
 - **Conditional GET:** ETag / Last-Modified + content digests to avoid redundant work.
 - **Targets:** Declare artifacts with deps; rebuild only when deps are newer.

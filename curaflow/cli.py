@@ -293,12 +293,36 @@ async def _fetch_parallel(
                 else:
                     changed = res.get("changed", False)
                     children = res.get("children", []) or []
+
+                    # Persist source data for any plugin that returns a
+                    # document. Built-in HTTP fetchers already write their
+                    # YAML internally; duplicating the write here is
+                    # harmless and keeps custom plugins (like local file
+                    # readers) consistent.
                     if changed:
+                        data = res.get("data")
+                        if data is not None:
+                            src_path = APP_DIRS["sources"] / f"{name}.yaml"
+                            try:
+                                write_text_atomic(
+                                    src_path,
+                                    yaml.safe_dump(
+                                        data,
+                                        sort_keys=True,
+                                        allow_unicode=True,
+                                    ),
+                                )
+                            except Exception:
+                                # Best-effort; failures are reported via the
+                                # plugin error path above.
+                                pass
+
                         child_count = len(children)
                         suffix = f"  (+{child_count} children)" if child_count else ""
                         rprint(f"[green]updated[/green] {name} -> data/sources/{name}.yaml{suffix}")
                     else:
                         rprint(f"[dim]unchanged[/dim] {name}")
+
                     return name, changed, children
 
             except Exception as e:
