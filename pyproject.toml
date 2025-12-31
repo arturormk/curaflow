@@ -4,10 +4,11 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "curaflow"
-version = "0.1.0"
+version = "1.0.0"
 description = "Incremental, parallel fetch→normalize→build pipeline with hierarchical fanout for web-curated data."
 authors = [{name="Control Equis", email="hello@controlequis.com"}]
-license = {text = "MIT"}
+license = "MIT"
+license-files = ["LICENSE", "AUTHORS"]
 readme = "README.md"
 requires-python = ">=3.10"
 dependencies = [
@@ -16,7 +17,8 @@ dependencies = [
   "typer>=0.12",
   "rich>=13.7",
   "beautifulsoup4>=4.12",
-  "lxml>=5.2"
+  "lxml>=5.2",
+  "pyexcel-ods3>=0.6.1"
 ]
 
 [tool.setuptools]

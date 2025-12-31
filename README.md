@@ -18,6 +18,43 @@ curaflow diff targets:tenants_bundle
 curaflow table "es:tiendas" --columns codigo,slug,marca --sort +codigo
 ```
 
+## Releases and packaging
+
+- Version is defined in [pyproject.toml](pyproject.toml) under `[project].version`.
+- CI ([.github/workflows/ci.yml](.github/workflows/ci.yml)) runs tests and verifies that the package builds.
+- A dedicated Release workflow ([.github/workflows/release.yml](.github/workflows/release.yml)) builds artifacts and attaches them to GitHub Releases.
+
+Typical release flow:
+
+1. Update the version in [pyproject.toml](pyproject.toml) (for example, `1.0.0`).
+2. Run tests and local build from a clean tree:
+
+	```bash
+	python -m venv .venv && source .venv/bin/activate
+	pip install -r requirements-dev.txt
+	pip install -e .
+	pytest -q
+	python -m build --sdist --wheel
+	ls dist/
+	```
+
+3. Optionally install the wheel locally to sanity-check the CLI:
+
+	```bash
+	pip install dist/curaflow-1.0.0-py3-none-any.whl
+	curaflow --help
+	```
+
+4. Commit and tag the release:
+
+	```bash
+	git commit -am "Release 1.0.0"
+	git tag -a v1.0.0 -m "Release v1.0.0"
+	git push origin main --tags
+	```
+
+5. Create a GitHub Release for tag `v1.0.0`. Once published, the Release workflow builds `sdist`/`wheel` from that tag and uploads them as assets to the Release page.
+
 ## Highlights
 
 - **Sources (YAML):** `http_json`, `http_html` (CSS selectors), `http_xml` (XML via ElementTree paths), `http_bytes` (binary, metadata YAML + file in `data/raw/`), `ods_table` (local ODS sheets into extraction tables).
