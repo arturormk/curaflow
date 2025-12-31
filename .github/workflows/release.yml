@@ -34,5 +34,7 @@ jobs:
           files: |
             dist/*.whl
             dist/*.tar.gz
+          fail_on_unmatched_files: true
+          skip_if_release_exists: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
