@@ -21,12 +21,12 @@ curaflow table "es:tiendas" --columns codigo,slug,marca --sort +codigo
 ## Highlights
 
 - **Sources (YAML):** `http_json`, `http_html` (CSS selectors), `http_xml` (XML via ElementTree paths), `http_bytes` (binary, metadata YAML + file in `data/raw/`), `ods_table` (local ODS sheets into extraction tables).
-- **Hierarchical fanout:** HTML extractions can spawn child sources (pages → images).
+- **Hierarchical fanout:** HTML extractions can spawn child sources (pages  images).
 - **Conditional GET:** ETag / Last-Modified + content digests to avoid redundant work.
 - **Targets:** Declare artifacts with deps; rebuild only when deps are newer.
 - **Diffs:** Structural diffs for targets stored in `.curaflow/diffs/`.
 - **Dynamic registry:** Discovered sources are persisted in `.curaflow/meta/sources_dynamic.json`.
- - **Inspection tooling:** `curaflow table` prints YAML sources as pretty tables, with natural ("1, 2, 10") sorting on selected columns.
+- **Inspection tooling:** `curaflow table` prints YAML sources as pretty tables, with natural ("1, 2, 10") sorting on selected columns.
 
 See `example/manifest.yaml` and comments in `curaflow/plugins/sources/http_html.py`.
 
@@ -227,6 +227,57 @@ The helper will:
 
 Target authors remain in full control of how the QML is constructed while
 avoiding repetitive boilerplate for YAML IO and summaries.
+
+### Watch target plugin for change summaries
+
+Curaflow includes a generic `watch` target plugin for extracting and tracking
+selected fields from a YAML source. This is useful for building compact
+"change summary" artifacts that can be monitored or archived independently of
+the full source document.
+
+Typical manifest usage:
+
+```yaml
+targets:
+	- name: watch_stores
+		plugin: watch
+		deps: ["es:tiendas"]
+		params:
+			list_key: "extractions.tiendas_items"   # where the records live in the source YAML
+			fields:                                  # mapping output_field -> input_field
+				codigo: "codigo"
+				slug: "slug"
+				logo: "logo"
+```
+
+At build time, `watch` will:
+
+- Load the first dependency's YAML from `APP_DIRS["sources"]`.
+- Resolve `list_key` to obtain a list of mapping-like records.
+- For each record, build a new object containing only the configured
+	`fields`.
+- Write a summary JSON to `APP_DIRS["targets"]/watch_stores.json` with the
+	following shape:
+
+	```json
+	{
+		"list_key": "extractions.tiendas_items",
+		"fields": {"codigo": "codigo", "slug": "slug", "logo": "logo"},
+		"items": [
+			{"codigo": "...", "slug": "...", "logo": "..."},
+			...
+		]
+	}
+	```
+
+As with other targets, `build` will compute structural diffs between
+successive versions of this JSON using `deep_diff` and store them under
+`.curaflow/diffs/watch_stores.diff.txt`. External tooling can then:
+
+- Archive snapshots of `watch_stores.json` over time (e.g. into a `history/`
+	directory), and
+- Inspect the diff file or perform additional domain-specific analysis to
+	generate human-friendly change notifications.
 
 ### Media conversion target plugin
 
