@@ -8,13 +8,13 @@ from .sources import http_bytes, http_html, http_json, http_xml, multiplex
 from .targets import concat_json, debug_print, media_convert, watch
 
 __all__ = [
-    "http_json",
-    "http_html",
-    "http_bytes",
-    "http_xml",
-    "multiplex",
     "concat_json",
     "debug_print",
+    "http_bytes",
+    "http_html",
+    "http_json",
+    "http_xml",
     "media_convert",
+    "multiplex",
     "watch",
 ]

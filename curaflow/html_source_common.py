@@ -176,4 +176,4 @@ def make_html_plugin(plugin_name: str, extractor: Extractor) -> None:
         return await _run_html_source(name, params, extractor)
 
 
-__all__ = ["Extractor", "make_html_plugin", "_run_html_source"]
+__all__ = ["Extractor", "_run_html_source", "make_html_plugin"]

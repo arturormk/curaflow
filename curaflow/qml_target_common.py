@@ -282,8 +282,8 @@ def make_qml_target_plugin(
 
 
 __all__ = [
-    "RenderFn",
     "ElementField",
+    "RenderFn",
     "build_elements_from_fields",
     "ddmmyyyy_to_iso",
     "make_qml_target_plugin",
