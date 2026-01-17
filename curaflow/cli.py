@@ -350,9 +350,13 @@ async def _fetch_parallel(
             # Add children to dynamic sources and queue
             for child in children:
                 child_name = child["name"]
-                if child_name not in queue and child_name not in processed:
-                    queue[child_name] = child
-                    dynamic_sources[child_name] = child
+                # Always refresh child specs when they're re-emitted (e.g. when
+                # a manifest or multiplex template changes). This ensures
+                # cached dynamic sources don't lock in stale params.
+                if child_name in processed:
+                    continue
+                queue[child_name] = child
+                dynamic_sources[child_name] = child
 
     # Persist dynamic registry
     if dynamic_sources:
