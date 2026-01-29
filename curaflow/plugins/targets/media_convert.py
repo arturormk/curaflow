@@ -139,6 +139,7 @@ def build_media_convert(name: str, deps: list[str], params: dict[str, object]) -
             target_path = base_dir / f"{base_name}{target_ext}"
             cmd = [
                 "rsvg-convert",
+                "-a",
                 "-w",
                 str(width),
                 "-h",
