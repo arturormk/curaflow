@@ -9,16 +9,18 @@
 ## Quickstart
 
 ```bash
-python -m venv .venv && source .venv/bin/activate
-pip install -e .
+uv sync
 
-curaflow plan -m example/manifest.yaml
-curaflow fetch -m example/manifest.yaml  # use --max-concurrent to tune parallelism
-curaflow build -m example/manifest.yaml
-curaflow status -m example/manifest.yaml
-curaflow diff targets:tenants_bundle
-curaflow table "es:tiendas" --columns codigo,slug,marca --sort +codigo
+uv run curaflow plan -m example/manifest.yaml
+uv run curaflow fetch -m example/manifest.yaml  # use --max-concurrent to tune parallelism
+uv run curaflow build -m example/manifest.yaml
+uv run curaflow status -m example/manifest.yaml
+uv run curaflow diff targets:tenants_bundle
+uv run curaflow table "es:tiendas" --columns codigo,slug,marca --sort +codigo
 ```
+
+`uv sync` creates and manages the project environment automatically; no manual
+`.venv` activation is required.
 
 ## Releases and packaging
 
@@ -32,19 +34,17 @@ Typical release flow:
 2. Run tests and local build from a clean tree:
 
 	```bash
-	python -m venv .venv && source .venv/bin/activate
-	pip install -r requirements-dev.txt
-	pip install -e .
-	pytest -q
-	python -m build --sdist --wheel
+	uv sync --locked
+	uv run pytest -q
+	uv build --sdist --wheel
 	ls dist/
 	```
 
 3. Optionally install the wheel locally to sanity-check the CLI:
 
 	```bash
-	pip install dist/curaflow-1.0.0-py3-none-any.whl
-	curaflow --help
+	uv pip install dist/curaflow-1.0.0-py3-none-any.whl
+	uv run --no-sync curaflow --help
 	```
 
 4. Commit and tag the release:

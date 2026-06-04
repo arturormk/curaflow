@@ -12,6 +12,7 @@ This directory contains Architecture Decision Records (ADRs) for Curaflow.
 - 0011 - adopt-third-party-type-stubs (Accepted)
 - 0012 - plugin-registry (Accepted)
 - 0013 - ruff-unified-lint-format-governance (Accepted)
+- 0014 - adopt-uv-project-environments (Accepted)
 <!-- ADR-INDEX:END -->
 
 ## Conventions

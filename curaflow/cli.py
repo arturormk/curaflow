@@ -613,15 +613,11 @@ def table(
             if field:
                 sort_specs.append((field, reverse))
 
-    def _natural_key(value: Any, *, force_text: bool = False) -> tuple[object, ...]:
+    def _natural_key(value: Any) -> tuple[tuple[int, object], ...]:
         """Return a key for *natural* ordering.
 
         Splits values into digit and non-digit segments so that
         "10" > "2" numerically when sorting.
-
-        If ``force_text`` is true, all segments are compared as strings.
-        This avoids mixed-type comparisons for columns containing both
-        string and non-string values.
         """
 
         if value is None:
@@ -629,32 +625,24 @@ def table(
 
         text = str(value)
         parts = re.split(r"(\d+)", text)
-        key_parts: list[object] = []
+        key_parts: list[tuple[int, object]] = []
         for part in parts:
             if not part:
                 continue
-            if part.isdigit() and not force_text:
+            if part.isdigit():
                 try:
-                    key_parts.append(int(part))
+                    key_parts.append((0, int(part)))
                 except ValueError:
-                    key_parts.append(part)
+                    key_parts.append((1, part))
             else:
-                key_parts.append(part)
+                key_parts.append((1, part))
         return tuple(key_parts)
 
-    # If a sortable field contains any explicit string value, sort everything
-    # in that field as text to avoid comparing ints to strs.
-    sort_force_text: dict[str, bool] = {}
-    for field, _reverse in sort_specs:
-        sort_force_text[field] = any(
-            isinstance(row.get(field), str) for row in rows if row.get(field) is not None
-        )
-
-    def _sort_key(field: str, row: dict[str, Any]) -> tuple[bool, tuple[object, ...]]:
+    def _sort_key(field: str, row: dict[str, Any]) -> tuple[bool, tuple[tuple[int, object], ...]]:
         v = row.get(field)
         if v is None:
             return True, ()
-        return False, _natural_key(v, force_text=sort_force_text.get(field, False))
+        return False, _natural_key(v)
 
     # Apply multi-key sort, lowest precedence first
     for field, reverse in reversed(sort_specs):

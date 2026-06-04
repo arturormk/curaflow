@@ -23,11 +23,11 @@ Key elements:
    - Style/lint rules (including import sorting and common error codes).
    - Source formatting (invoked via `ruff format`).
 2. Canonical local workflow (documented in CONTRIBUTING and Issue 0001):
-   1. `ruff check . --fix`
-   2. `ruff format .`
-   3. `mypy .`
-   4. `pytest -q`
-   5. `pre-commit run --all-files`
+   1. `uv run ruff check . --fix`
+   2. `uv run ruff format .`
+   3. `uv run mypy .`
+   4. `uv run pytest -q`
+   5. `uv run pre-commit run --all-files`
 3. Import grouping policy (enforced by Ruff; contributors avoid manual reordering beyond obvious deletions):
    - Future imports
    - (Optional) module docstring (consistent placement relative to future import within file)

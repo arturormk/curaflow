@@ -16,16 +16,16 @@ Context: While introducing the plugin registry (ADR-0012) several pre-commit run
 
 ## Canonical Resolution Workflow
 ```
-ruff check . --fix      # auto-fix import order, simple lint issues
-ruff format .           # apply code formatting
-mypy .                  # type validation
-pytest -q               # tests
-pre-commit run --all-files  # final gate (includes ADR index & lint)
+uv run ruff check . --fix      # auto-fix import order, simple lint issues
+uv run ruff format .           # apply code formatting
+uv run mypy .                  # type validation
+uv run pytest -q               # tests
+uv run pre-commit run --all-files  # final gate (includes ADR index & lint)
 ```
 If a hook rewrites files:
 ```
 git add .
-pre-commit run --all-files
+uv run pre-commit run --all-files
 ```
 
 ## Import Ordering Policy
@@ -36,7 +36,7 @@ Groups separated by one blank line in this order:
 4. Third-party imports
 5. Local/relative imports (`from .foo import Bar`, `from ..pkg import baz`)
 
-Let Ruff handle ordering: `ruff check file.py --fix`.
+Let Ruff handle ordering: `uv run ruff check file.py --fix`.
 
 ## Try/Except Edit Tip
 When adjusting code inside a `try` block, *never* dedent new lines inadvertently; run `python -m py_compile file.py` if unsure before committing.
@@ -50,11 +50,11 @@ When adjusting code inside a `try` block, *never* dedent new lines inadvertently
 ## Quick One-Liners
 Format & lint full tree:
 ```
-ruff check . --fix && ruff format .
+uv run ruff check . --fix && uv run ruff format .
 ```
 Full gate:
 ```
-ruff check . --fix && ruff format . && mypy . && pytest -q && pre-commit run --all-files
+uv run ruff check . --fix && uv run ruff format . && uv run mypy . && uv run pytest -q && uv run pre-commit run --all-files
 ```
 
 ## Relation to ADR-0013
