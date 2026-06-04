@@ -256,7 +256,10 @@ async def _fetch_parallel(
                     rprint(f"[yellow]SKIP[/yellow] {name}: plugin {plugin} not registered")
                     return name, False, []
 
-                res = await execute_source(plugin, {**params, "name": name, "force": force or bool(params.get("force", False))})
+                res = await execute_source(
+                    plugin,
+                    {**params, "name": name, "force": force or bool(params.get("force", False))},
+                )
                 if debug:
                     data = res.get("data")
                     children = res.get("children") or []
