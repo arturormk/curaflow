@@ -21,8 +21,18 @@ dependencies = [
   "pyexcel-ods3>=0.6.1"
 ]
 
+[dependency-groups]
+dev = [
+  "pytest>=8.0",
+  "ruff>=0.5.0",
+  "mypy>=1.10",
+  "build>=1.2.1",
+  "pre-commit>=3.7",
+  "types-PyYAML>=6.0.12",
+]
+
 [tool.setuptools]
-# Let setuptools automatically find all packages and subpackages
+packages = {find = {include = ["curaflow", "curaflow.*"]}}
 
 [project.scripts]
 curaflow = "curaflow.cli:app"

@@ -20,6 +20,6 @@ We will install and maintain third-party stub packages (starting with `types-PyY
 3. Vendoring custom minimal stubs: Higher maintenance cost relative to installing community-maintained stub packages.
 
 ## Adoption & Maintenance
-- Add stub packages to `requirements-dev.txt`.
+- Add stub packages to the project's dev dependency group.
 - Review stub updates periodically during dependency refresh cycles.
 - If a stub proves inaccurate, prefer precise inline ignores over disabling checks globally.
