@@ -14,6 +14,60 @@ from .utils import add_extraction_indices, ensure_dir, sha256_obj, write_text_at
 Extractor = Callable[[BeautifulSoup, str, dict[str, Any]], dict[str, Any]]
 
 
+def _build_fanout_children(
+    name: str,
+    normalized: dict[str, Any] | None,
+    fanout_specs: Any,
+) -> list[dict[str, Any]]:
+    children: list[dict[str, Any]] = []
+    extractions = (normalized or {}).get("extractions") or {}
+    if not isinstance(fanout_specs, list) or not isinstance(extractions, dict):
+        return children
+
+    for fs in fanout_specs:
+        if not isinstance(fs, dict):
+            continue
+        src = fs.get("from")
+        child_plugin = fs.get("plugin")
+        if not src or not child_plugin:
+            continue
+        name_t = fs.get("name_template", f"{name}:{src}:{{slug}}")
+        url_field = fs.get("url_field", "absolute_url")
+        base_params = fs.get("params", {})
+        items = extractions.get(src) or []
+        if not isinstance(items, list):
+            continue
+
+        for idx, item in enumerate(items):
+            if not isinstance(item, dict) or url_field not in item:
+                continue
+
+            fmt_ctx: dict[str, Any] = dict(item)
+            fmt_ctx.setdefault("slug", item.get("slug", f"{idx}"))
+            fmt_ctx.setdefault("index", idx)
+            fmt_ctx.setdefault("absolute_url", item.get(url_field, ""))
+
+            class _SafeDict(dict[str, Any]):
+                def __missing__(self, key: str) -> str:
+                    return "{" + key + "}"
+
+            child_name = str(name_t).format_map(_SafeDict(fmt_ctx))
+            child_params = dict(base_params) if isinstance(base_params, dict) else {}
+            for k, v in list(child_params.items()):
+                if isinstance(v, str):
+                    try:
+                        child_params[k] = v.format(**item)
+                    except KeyError:
+                        pass
+            if "url" not in child_params:
+                child_params["url"] = item[url_field]
+            children.append(
+                {"name": child_name, "plugin": child_plugin, "params": child_params}
+            )
+
+    return children
+
+
 async def _run_html_source(
     name: str,
     params: dict[str, Any],
@@ -50,7 +104,7 @@ async def _run_html_source(
             if (SRC_DIR / f"{name}.yaml").exists()
             else None
         )
-        return False, prev, []
+        return False, prev, _build_fanout_children(name, prev, params.get("fanout", []))
 
     resp.raise_for_status()
     html = resp.text
@@ -88,7 +142,7 @@ async def _run_html_source(
             if (SRC_DIR / f"{name}.yaml").exists()
             else None
         )
-        return False, prev, []
+        return False, prev, _build_fanout_children(name, prev, params.get("fanout", []))
 
     write_text_atomic(
         SRC_DIR / f"{name}.yaml",
@@ -103,55 +157,7 @@ async def _run_html_source(
     )
     new_meta.save()
 
-    # Optional generic fanout, mirroring ``http_html`` semantics.
-    children: list[dict[str, Any]] = []
-    fanout_specs = params.get("fanout", [])
-    extractions = normalized.get("extractions") or {}
-    if isinstance(fanout_specs, list) and isinstance(extractions, dict):
-        for fs in fanout_specs:
-            if not isinstance(fs, dict):
-                continue
-            src = fs.get("from")
-            child_plugin = fs.get("plugin")
-            if not src or not child_plugin:
-                continue
-            name_t = fs.get("name_template", f"{name}:{src}:{{slug}}")
-            url_field = fs.get("url_field", "absolute_url")
-            base_params = fs.get("params", {})
-            items = extractions.get(src) or []
-            if not isinstance(items, list):
-                continue
-
-            for idx, item in enumerate(items):
-                if not isinstance(item, dict) or url_field not in item:
-                    continue
-
-                fmt_ctx: dict[str, Any] = dict(item)
-                fmt_ctx.setdefault("slug", item.get("slug", f"{idx}"))
-                fmt_ctx.setdefault("index", idx)
-                fmt_ctx.setdefault("absolute_url", item.get(url_field, ""))
-
-                class _SafeDict(dict[str, Any]):
-                    def __missing__(self, key: str) -> str:
-                        return "{" + key + "}"
-
-                child_name = name_t.format_map(_SafeDict(fmt_ctx))
-                child_params = dict(base_params)
-                for k, v in list(child_params.items()):
-                    if isinstance(v, str):
-                        try:
-                            child_params[k] = v.format(**item)
-                        except KeyError:
-                            # Leave value as-is if formatting fails due to
-                            # missing keys; this mirrors ``http_html``.
-                            pass
-                if "url" not in child_params:
-                    child_params["url"] = item[url_field]
-                children.append(
-                    {"name": child_name, "plugin": child_plugin, "params": child_params}
-                )
-
-    return True, normalized, children
+    return True, normalized, _build_fanout_children(name, normalized, params.get("fanout", []))
 
 
 def make_html_plugin(plugin_name: str, extractor: Extractor) -> None:

@@ -8,6 +8,7 @@ import httpx
 import yaml
 
 from ...fetcher import SRC_DIR, FetchMeta, conditional_get
+from ...html_source_common import _build_fanout_children
 from ...html_utils import slugify
 from ...plugin_registry import source_plugin
 from ...utils import add_extraction_indices, ensure_dir, sha256_obj, write_text_atomic
@@ -116,7 +117,7 @@ async def fetch(
             if (SRC_DIR / f"{name}.yaml").exists()
             else None
         )
-        return (False, prev, [])
+        return (False, prev, _build_fanout_children(name, prev, fanout_specs))
 
     resp.raise_for_status()
     content = resp.content
@@ -193,7 +194,7 @@ async def fetch(
             if (SRC_DIR / f"{name}.yaml").exists()
             else None
         )
-        return (False, prev, [])
+        return (False, prev, _build_fanout_children(name, prev, fanout_specs))
 
     write_text_atomic(
         SRC_DIR / f"{name}.yaml",
@@ -208,37 +209,7 @@ async def fetch(
     )
     new_meta.save()
 
-    # Build children (same contract as http_html)
-    children: list[dict[str, Any]] = []
-    ex = normalized["extractions"]
-    for fs in fanout_specs:
-        src = fs["from"]
-        child_plugin = fs["plugin"]
-        name_t = fs.get("name_template", f"{name}:{src}:{{slug}}")
-        url_field = fs.get("url_field", "absolute_url")
-        base_params = fs.get("params", {})
-        for idx, item in enumerate(ex.get(src, [])):
-            if url_field not in item:
-                continue
-            # Allow name_template to reference any extracted field (e.g. {ID})
-            # while still providing slug/index/absolute_url defaults and avoiding
-            # KeyError for missing keys.
-            fmt_ctx: dict[str, Any] = dict(item)
-            fmt_ctx.setdefault("slug", item.get("slug", f"{idx}"))
-            fmt_ctx.setdefault("index", idx)
-            fmt_ctx.setdefault("absolute_url", item.get("absolute_url", ""))
-
-            class _SafeDict(dict[str, Any]):
-                def __missing__(self, key: str) -> str:
-                    return "{" + key + "}"
-
-            child_name = name_t.format_map(_SafeDict(fmt_ctx))
-            child_params = _format_nested(base_params, item)
-            if "url" not in child_params:
-                child_params["url"] = item[url_field]
-            children.append({"name": child_name, "plugin": child_plugin, "params": child_params})
-
-    return (True, normalized, children)
+    return (True, normalized, _build_fanout_children(name, normalized, fanout_specs))
 
 
 __all__ = ["fetch"]

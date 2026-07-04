@@ -210,19 +210,13 @@ async def _fetch_parallel(
     force: bool = False,
 ) -> bool:
     """Parallel fetch implementation with concurrency control."""
-    # Load previously discovered dynamic sources
     dyn_path = APP_DIRS["meta"] / "sources_dynamic.json"
     dynamic_sources: dict[str, dict[str, Any]] = {}
-    if dyn_path.exists():
-        try:
-            dynamic_sources = {
-                s["name"]: s for s in json.loads(dyn_path.read_text(encoding="utf-8"))
-            }
-        except Exception:
-            dynamic_sources = {}
 
-    # Initialize queue with manifest sources and dynamic sources. Tests may pass plain
-    # dicts masquerading as SourceSpec, so accept both dataclass and mapping inputs.
+    # Rebuild dynamic sources from manifest roots on every fetch. This avoids
+    # stale fanout entries accumulating when child names change over time.
+    # Tests may pass plain dicts masquerading as SourceSpec, so accept both
+    # dataclass and mapping inputs.
     queue: dict[str, dict[str, Any]] = {}
     for src in sources.values():
         if isinstance(src, dict):  # tolerate tests using raw dicts cast to SourceSpec
@@ -234,9 +228,6 @@ async def _fetch_parallel(
             plugin = src.plugin
             params = src.params
         queue[name] = {"name": name, "plugin": plugin, "params": params}
-    for dyn in dynamic_sources.values():
-        queue.setdefault(dyn["name"], dyn)
-
     processed: set[str] = set()
     changed_any = False
     semaphore = asyncio.Semaphore(max_concurrent)
