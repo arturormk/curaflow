@@ -61,9 +61,7 @@ def _build_fanout_children(
                         pass
             if "url" not in child_params:
                 child_params["url"] = item[url_field]
-            children.append(
-                {"name": child_name, "plugin": child_plugin, "params": child_params}
-            )
+            children.append({"name": child_name, "plugin": child_plugin, "params": child_params})
 
     return children
 
