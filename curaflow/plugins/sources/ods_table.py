@@ -53,15 +53,13 @@ def _build_records_from_columns(
                 f"in sheet with headers {headers!r}"
             ) from exc
 
-    max_idx = max(indices.values()) if indices else -1
-
     records: list[dict[str, Any]] = []
     for row in rows[1:]:
-        if len(row) <= max_idx:
-            continue
         rec: dict[str, Any] = {}
         for field, idx in indices.items():
-            value = row[idx]
+            # pyexcel-ods3 can trim trailing empty cells, so treat missing
+            # indexes as empty instead of dropping the entire row.
+            value = row[idx] if idx < len(row) else None
             # Normalise to string and trim whitespace; callers can choose
             # column names/types to suit their needs.
             text = "" if value is None else str(value).strip()
